@@ -1,0 +1,25 @@
+﻿@model KakeiboApp.Models.Views.ArchiveViewModel
+
+<a asp-controller="Kakeibo" asp-action="RegisterArchive">月次処理</a>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>年月</th>
+            <th>収入合計</th>
+            <th>支出合計</th>
+            <th>収支</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model.Archives)
+    {
+        <tr>
+            <td>@item.date</td>
+            <td>@item.Shuunyuu 円</td>
+            <td>@item.Shishutu 円</td>
+            <td>@item.Shuusi 円</td>
+        </tr>
+    }
+    
+    </tbody>

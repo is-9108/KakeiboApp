@@ -65,5 +65,21 @@ namespace KakeiboApp.Controllers
             return View("SubscriptionRegister");
         }
 
+        public IActionResult Archive()
+        {
+            var viewModel = new ArchiveViewModel()
+            {
+                Archives = new Models.DAO.GetArcheveDao().GetArchives()
+            };
+            return View(viewModel.Title,viewModel);
+        }
+
+        public IActionResult RegisterArchive()
+        {
+            var viewModel = new Models.DAO.RegisterArchive();
+            viewModel.Register();
+            return Archive();
+        }
+
     }
 }

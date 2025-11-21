@@ -7,6 +7,6 @@ obj
 *.tmp
 *.bak
 *.swp
-.db
-.db-shm
-.db
+*.db
+*.db-shm
+*.db-wal

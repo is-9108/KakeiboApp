@@ -1,12 +1,12 @@
 ﻿@model KakeiboApp.Models.Views.MainViewModel
 
 @{
-    var balance = Model.Income - Model.Expenses;
+    var balance = Model.TotalIncome - Model.TotalExpense;
 }
 
-<p>収支: @balance 円</p>
-<p>収入: @Model.Income 円</p>
-<p>支出: @Model.Expenses 円</p>
+<p name="shuusi">収支: @balance 円</p>
+<p name="shuunyuu">収入: @Model.TotalIncome 円</p>
+<p name="sishutu">支出: @Model.TotalExpense 円</p>
 
 <table class="table">
     <thead>
@@ -27,3 +27,5 @@
     }
     
     </tbody>
+
+  
