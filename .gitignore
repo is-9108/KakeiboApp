@@ -1,0 +1,12 @@
+.vs
+bin
+obj
+*.user
+*.suo
+*.log
+*.tmp
+*.bak
+*.swp
+.db
+.db-shm
+.db

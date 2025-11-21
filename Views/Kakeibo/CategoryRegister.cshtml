@@ -1,0 +1,17 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+<form action="/Kakeibo/CategoryRegister" method="post">
+    <div>
+        <label for="name">カテゴリ名</label>
+        <input type="text" id="name" name="name" />
+    </div>
+    <div>
+        <label for="name">収支</label>
+        <select id="isIncome" name="isIncome">
+            <option value="true">収入</option>
+            <option value="false">支出</option>
+        </select>
+    </div>
+    <button type="submit">登録</button>
+</form>

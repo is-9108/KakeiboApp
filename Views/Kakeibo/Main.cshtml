@@ -1,0 +1,29 @@
+﻿@model KakeiboApp.Models.Views.MainViewModel
+
+@{
+    var balance = Model.Income - Model.Expenses;
+}
+
+<p>収支: @balance 円</p>
+<p>収入: @Model.Income 円</p>
+<p>支出: @Model.Expenses 円</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>名前</th>
+            <th>カテゴリ</th>
+            <th>金額</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model.Transactions)
+    {
+        <tr>
+            <td>@item.Name</td>
+            <td>@item.CategoryName</td>
+            <td>@item.Amount</td>
+        </tr>
+    }
+    
+    </tbody>
