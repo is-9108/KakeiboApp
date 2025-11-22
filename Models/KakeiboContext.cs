@@ -20,7 +20,8 @@ namespace KakeiboApp.Models
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<Category>().HasData(
-                new Category { Id = 1, CategoryName = "サブスク", IsIncome = false });
+                new Category { Id = 1, CategoryName = "サブスク", IsIncome = false }
+                );
         }
     }
 }

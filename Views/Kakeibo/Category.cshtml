@@ -1,0 +1,35 @@
+﻿@model KakeiboApp.Models.Views.CategoryViewModel
+<h2>カテゴリ一覧</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>カテゴリ名</th>
+            <th>収支</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model.Categories)
+    {
+        <tr>
+            <td>@item.CategoryName</td>
+            <td>
+                @if (item.IsIncome)
+                {
+                    <span>収入</span>
+                }
+                else
+                {
+                    <span>支出</span>
+                }
+            </td>
+            <td>
+                <a asp-controller="Kakeibo" asp-action="DeleteCategory" asp-route-id="@item.Id">削除</a>
+            </td>
+        </tr>
+    }
+    
+    </tbody>
+</table>
+
+<a asp-controller="Kakeibo" asp-action="CategoryRegister">カテゴリ追加</a>

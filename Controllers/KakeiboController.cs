@@ -32,29 +32,45 @@ namespace KakeiboApp.Controllers
             return Register();
         }
 
-        [HttpPost]
-        public IActionResult RegisterItem(MainViewModel model)
+        public IActionResult Category()
         {
-
-            return View("Main");
+            var viewModel = new CategoryViewModel()
+            {
+                Categories = new Models.DAO.RegisterCategory().GetCategories()
+            };
+            return View(viewModel.Title,viewModel);
         }
+
+        public IActionResult Subscription()
+        {
+            var viewModel = new SubscriptionViewModel()
+            {
+                Subscriptions = new Models.DAO.RegisterSubscription().GetSubscriptions()
+            };
+            return View(viewModel.Title,viewModel);
+        }
+
         [HttpGet]
         public IActionResult CategoryRegister()
         {
-            return View("CategoryRegister");
+            var viewModel = new CategoryRegister();
+            return View(viewModel.Title);
         }
 
         [HttpPost]
         public IActionResult CategoryRegister(string name, bool isIncome)
         {
+            var viewModel = new CategoryRegister();
             var dao = new Models.DAO.RegisterCategory();
             dao.Register(name, isIncome);
-            return View("CategoryRegister");
+            return View(viewModel.Title);
         }
         [HttpGet]
         public IActionResult SubscriptionRegister()
         {
-            return View("SubscriptionRegister");
+            var viewModel = new SubscriptionRegister();
+            viewModel.Subscriptions = new Models.DAO.RegisterSubscription().GetSubscriptions();
+            return View(viewModel.Title);
         }
 
         [HttpPost]
@@ -79,6 +95,20 @@ namespace KakeiboApp.Controllers
             var viewModel = new Models.DAO.RegisterArchive();
             viewModel.Register();
             return Archive();
+        }
+
+        public IActionResult DeleteCategory(int id)
+        {
+            var dao = new Models.DAO.RegisterCategory();
+            dao.Delete(id);
+            return Category();
+        }
+
+        public IActionResult DeleteSubscription(int id) 
+        {
+            var dao = new Models.DAO.RegisterSubscription();
+            dao.Delete(id);
+            return Subscription();
         }
 
     }

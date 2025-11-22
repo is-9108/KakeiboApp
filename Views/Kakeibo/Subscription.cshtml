@@ -1,0 +1,26 @@
+﻿@model KakeiboApp.Models.Views.SubscriptionViewModel
+<h2>サブスク一覧</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>サブスク名</th>
+            <th>金額</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model.Subscriptions)
+    {
+        <tr>
+            <td>@item.SubscriptionName</td>
+            <td>@item.Amount</td>
+            <td>
+                <a asp-controller="Kakeibo" asp-action="DeleteSubscription" asp-route-id="@item.Id">削除</a>
+            </td>
+        </tr>
+    }
+    
+    </tbody>
+</table>
+
+<a asp-controller="Kakeibo" asp-action="SubscriptionRegister">サブスク追加</a>

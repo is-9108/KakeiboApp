@@ -59,5 +59,19 @@ namespace KakeiboApp.Models.DAO
                 context.SaveChanges();
             }
         }
+
+        public List<Subscription> GetSubscriptions()
+        {
+            return context.Subscriptions.ToList();
+        }
+        public void Delete(int subscriptionId)
+        {
+            var subscription = context.Subscriptions.Find(subscriptionId);
+            if (subscription != null)
+            {
+                context.Subscriptions.Remove(subscription);
+                context.SaveChanges();
+            }
+        }
     }
 }

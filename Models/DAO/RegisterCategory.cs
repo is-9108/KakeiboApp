@@ -30,5 +30,20 @@ namespace KakeiboApp.Models.DAO
             context.Categories.Add(category);
             context.SaveChanges();
         }
+
+        public List<Category> GetCategories()
+        {
+            return context.Categories.ToList();
+        }
+
+        public void Delete(int categoryId)
+        {
+            var category = context.Categories.Find(categoryId);
+            if (category != null)
+            {
+                context.Categories.Remove(category);
+                context.SaveChanges();
+            }
+        }
     }
 }

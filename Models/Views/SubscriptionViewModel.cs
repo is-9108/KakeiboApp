@@ -2,11 +2,11 @@
 
 namespace KakeiboApp.Models.Views
 {
-    public class SubscriptionRegister: ViewModelBase
+    public class SubscriptionViewModel: ViewModelBase
     {
-        public SubscriptionRegister()
+        public SubscriptionViewModel()
         {
-            Title = "SubscriptionRegister";
+            Title = "Subscription";
         }
         public List<Subscription> Subscriptions { get; set; }
     }

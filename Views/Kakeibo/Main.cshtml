@@ -11,7 +11,6 @@
 <table class="table">
     <thead>
         <tr>
-            <th>名前</th>
             <th>カテゴリ</th>
             <th>金額</th>
         </tr>
@@ -20,9 +19,8 @@
     @foreach (var item in Model.Transactions)
     {
         <tr>
-            <td>@item.Name</td>
             <td>@item.CategoryName</td>
-            <td>@item.Amount</td>
+            <td>@item.TotalAmount</td>
         </tr>
     }
     

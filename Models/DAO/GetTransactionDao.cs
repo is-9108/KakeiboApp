@@ -16,12 +16,13 @@ namespace KakeiboApp.Models.DAO
         }
         public List<MainViewData> GetTransactions()
         {
-            var transactions = context.Transactions.Include(t => t.Category).Select(t => new MainViewData
-            {
-                Name = t.Name,
-                Amount = t.Amount,
-                CategoryName = t.Category.CategoryName,
-            }).ToList();
+            var transactions = context.Transactions
+                .GroupBy(x => x.Category.CategoryName)
+                .Select(g => new MainViewData
+                {
+                    CategoryName = g.Key,
+                    TotalAmount = g.Sum(t => t.Amount)
+                }).ToList();
 
             return transactions;
         }
