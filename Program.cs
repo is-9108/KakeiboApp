@@ -1,4 +1,5 @@
 using KakeiboApp.Models;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using System;
 
@@ -12,26 +13,49 @@ builder.Services.AddDbContext<KakeiboContext>(options =>
 
 var app = builder.Build();
 
+// appsettings.jsonÇ©ÇÁForwardedHeadersÇì«Ç›çûÇﬁ
+var forwardedHeadersConfig = builder.Configuration.GetSection("ForwardedHeaders");
+var headers = ForwardedHeaders.None;
 
-// Configure the HTTP request pipeline.
+if (forwardedHeadersConfig.Exists())
+{
+    var headersString = forwardedHeadersConfig["ForwardedHeaders"];
+    if (!string.IsNullOrEmpty(headersString))
+    {
+        foreach (var header in headersString.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (Enum.TryParse<ForwardedHeaders>(header.Trim(), true, out var parsed))
+            {
+                headers |= parsed;
+            }
+        }
+    }
+}
+
+if (headers != ForwardedHeaders.None)
+{
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = headers
+    });
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+
 app.UseRouting();
 
 app.UseAuthorization();
 
-app.MapStaticAssets();
-
-
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Kakeibo}/{action=Index}");
-
 
 app.Run();
