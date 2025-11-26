@@ -8,7 +8,7 @@ namespace KakeiboApp.Models.DAO
     {
         private readonly KakeiboContext context;
         public GetTransactionDao()
-        { 
+        {
             context = new KakeiboContext(
                 new DbContextOptionsBuilder<KakeiboContext>()
                 .UseSqlite("Data Source=kakeibo.db")
@@ -42,6 +42,12 @@ namespace KakeiboApp.Models.DAO
                 .Where(x => !x.Category.IsIncome)
                 .Sum(x => x.Amount);
             return totalExpense;
+        }
+
+        public bool HasTransactions(string name)
+        {
+            var transaction = context.Transactions.Select(x => x.Name);
+            return transaction.Contains(name);
         }
     }
 }

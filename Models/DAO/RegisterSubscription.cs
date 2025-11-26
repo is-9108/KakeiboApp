@@ -26,38 +26,6 @@ namespace KakeiboApp.Models.DAO
             };
             context.Subscriptions.Add(subscription);
             context.SaveChanges();
-
-            var transactions = context.Transactions.Where(x => x.Category.CategoryName == "サブスク").ToList();
-            var subscriptions = context.Subscriptions.ToList();
-
-            var transactionList = new List<Transaction>();
-
-            foreach (var sub in subscriptions)
-            {
-                foreach (var t in transactions)
-                {
-                    if (t.Name == subscription.SubscriptionName)
-                    {
-                        continue;
-                    }
-                    else
-                    {
-                        var transaction = new Transaction
-                        {
-                            Name = sub.SubscriptionName,
-                            Amount = sub.Amount,
-                            CategoryId = 1
-                        };
-                        transactionList.Add(transaction);
-                        break;
-                    }
-                }
-            }
-            if (transactionList.Count > 0)
-            {
-                context.Transactions.AddRange(transactionList);
-                context.SaveChanges();
-            }
         }
 
         public List<Subscription> GetSubscriptions()
@@ -72,6 +40,26 @@ namespace KakeiboApp.Models.DAO
                 context.Subscriptions.Remove(subscription);
                 context.SaveChanges();
             }
+        }
+
+        public void FirstRegister()
+        {
+            var subscriptionList = context.Subscriptions.ToList();
+            var transactionList = new List<Transaction>();
+            foreach (var sub in subscriptionList)
+            {
+                var transaction = new Transaction
+                {
+                    Name = sub.SubscriptionName,
+                    Amount = sub.Amount,
+                    CategoryId = 1
+                };
+                transactionList.Add(transaction);
+            }
+
+            context.Transactions.AddRange(transactionList);
+            context.SaveChanges();
+
         }
     }
 }

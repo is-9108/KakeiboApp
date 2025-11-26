@@ -78,6 +78,8 @@ namespace KakeiboApp.Controllers
         {
             var dao = new Models.DAO.RegisterSubscription();
             dao.Register(subscriptionName, Amount);
+            var transactionDao = new Models.DAO.RegisterItem();
+            transactionDao.Register(subscriptionName, 1, Amount);
             return View("SubscriptionRegister");
         }
 
@@ -94,6 +96,8 @@ namespace KakeiboApp.Controllers
         {
             var viewModel = new Models.DAO.RegisterArchive();
             viewModel.Register();
+            var dao = new Models.DAO.RegisterSubscription();
+            dao.FirstRegister();
             return Archive();
         }
 

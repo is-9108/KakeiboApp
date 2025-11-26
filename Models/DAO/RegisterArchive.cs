@@ -25,7 +25,9 @@ namespace KakeiboApp.Models.DAO
                 Shuusi = transactions.GetTotalIncome() - transactions.GetTotalExpense()
             };
             context.Archives.Add(archive);
+            context.Transactions.RemoveRange(context.Transactions);
             context.SaveChanges();
         }
+        
     }
 }
