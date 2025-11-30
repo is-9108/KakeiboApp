@@ -59,5 +59,14 @@ namespace KakeiboApp.Models.DAO
                 .ToList();
             return details;
         }
+        public void Delete(int transactionId)
+        {
+            var transaction = context.Transactions.Find(transactionId);
+            if (transaction != null)
+            {
+                context.Transactions.Remove(transaction);
+                context.SaveChanges();
+            }
+        }
     }
 }

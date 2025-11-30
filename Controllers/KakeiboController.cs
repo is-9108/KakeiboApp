@@ -125,5 +125,11 @@ namespace KakeiboApp.Controllers
             return View(viewModel.Title,viewModel);
         }
 
+        public IActionResult Delete(int ID)
+        {
+            var dao = new Models.DAO.GetTransactionDao();
+            dao.Delete(ID);
+            return View();
+        }
     }
 }

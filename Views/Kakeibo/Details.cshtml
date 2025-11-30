@@ -6,6 +6,7 @@
         <tr>
             <th>タイトル</th>
             <th>金額</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -14,6 +15,9 @@
         <tr>
             <td>@item.Name</td>
             <td>@item.Amount 円</td>
+            <td>
+                <a asp-action="Delete" asp-route-id="@item.Id">削除</a>
+            </td>
         </tr>
     }
     </tbody>
