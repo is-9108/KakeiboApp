@@ -1,0 +1,20 @@
+﻿@model KakeiboApp.Models.Views.DetailsViewModel
+<h2>家計簿詳細</h2>
+<h3>カテゴリ: @Model.CategoryName</h3>
+<table class="table">
+    <thead>
+        <tr>
+            <th>タイトル</th>
+            <th>金額</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach(var item in Model.Details)
+    {
+        <tr>
+            <td>@item.Name</td>
+            <td>@item.Amount 円</td>
+        </tr>
+    }
+    </tbody>
+</table>

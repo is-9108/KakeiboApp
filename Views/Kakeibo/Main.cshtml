@@ -13,6 +13,7 @@
         <tr>
             <th>カテゴリ</th>
             <th>金額</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -21,6 +22,10 @@
         <tr>
             <td>@item.CategoryName</td>
             <td>@item.TotalAmount</td>
+            <td><a asp-controller="Kakeibo" 
+                asp-action="Details" 
+                asp-route-categoryID=@item.CategoryID 
+                asp-route-categoryName=@item.CategoryName>詳細</a></td>
         </tr>
     }
     

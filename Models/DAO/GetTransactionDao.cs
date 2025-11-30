@@ -1,6 +1,7 @@
 ﻿using KakeiboApp.Models.DATA;
 using Microsoft.EntityFrameworkCore;
 using System.Runtime.InteropServices;
+using System.Transactions;
 
 namespace KakeiboApp.Models.DAO
 {
@@ -21,7 +22,8 @@ namespace KakeiboApp.Models.DAO
                 .Select(g => new MainViewData
                 {
                     CategoryName = g.Key,
-                    TotalAmount = g.Sum(t => t.Amount)
+                    TotalAmount = g.Sum(t => t.Amount),
+                    CategoryID = g.First().CategoryId
                 }).ToList();
 
             return transactions;
@@ -48,6 +50,14 @@ namespace KakeiboApp.Models.DAO
         {
             var transaction = context.Transactions.Select(x => x.Name);
             return transaction.Contains(name);
+        }
+
+        public List<Entities.Transaction> GetDetail(int categoryID)
+        {
+            var details = context.Transactions
+                .Where(x => x.CategoryId == categoryID)
+                .ToList();
+            return details;
         }
     }
 }

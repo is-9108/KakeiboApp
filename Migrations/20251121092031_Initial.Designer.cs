@@ -74,7 +74,7 @@ namespace KakeiboApp.Migrations
                     b.ToTable("Subscriptions");
                 });
 
-            modelBuilder.Entity("KakeiboApp.Models.Entities.Transaction", b =>
+            modelBuilder.Entity("KakeiboApp.Models.Entities.Details", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()

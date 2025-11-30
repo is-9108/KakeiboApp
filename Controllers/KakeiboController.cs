@@ -115,5 +115,15 @@ namespace KakeiboApp.Controllers
             return Subscription();
         }
 
+        public IActionResult Details(int categoryID,string categoryName)
+        {
+            var viewModel = new DetailsViewModel();
+            var dao = new Models.DAO.GetTransactionDao();
+            viewModel.Details = dao.GetDetail(categoryID);
+            viewModel.CategoryName = categoryName;
+
+            return View(viewModel.Title,viewModel);
+        }
+
     }
 }
