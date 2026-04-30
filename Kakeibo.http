@@ -1,0 +1,6 @@
+@Kakeibo_HostAddress = http://localhost:5022
+
+GET {{Kakeibo_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
