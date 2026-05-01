@@ -5,6 +5,12 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+builder.Services.AddScoped<Kakeibo.Services.Transaction.ITransaction, Kakeibo.Services.Transaction.Transaction>();
+builder.Services.AddScoped<Kakeibo.Services.Category.ICategory, Kakeibo.Services.Category.Category>();
+builder.Services.AddScoped<Kakeibo.Services.Monthly.IMonthly, Kakeibo.Services.Monthly.Monthly>();
+builder.Services.AddScoped<Kakeibo.Services.Subscription.ISubscription, Kakeibo.Services.Subscription.Subscription>();
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

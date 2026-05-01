@@ -40,10 +40,6 @@ namespace Kakeibo.Services.Transaction
         public async Task<Models.Transaction?> GetTransactionById(int id)
         {
             var transaction = await _context.Transactions.FindAsync(id);
-            if (transaction == null)
-            {
-                throw new Exception($"Transaction with id {id} not found");
-            }
             return transaction;
         }
 

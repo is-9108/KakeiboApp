@@ -1,6 +1,5 @@
-﻿using Kakeibo.Data;
+﻿using Kakeibo.Services.Transaction;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Kakeibo.Controllers
 {
@@ -9,58 +8,109 @@ namespace Kakeibo.Controllers
     public class TransactionController : ControllerBase
     {
         private readonly ILogger<TransactionController> _logger;
-        private readonly AppDbContext _context;
-        private readonly Services.Transaction.ITransaction _transactionService;
+        private readonly ITransaction _transactionService;
 
-        public TransactionController(AppDbContext context, ILogger<TransactionController> logger)
+        public TransactionController(ITransaction transactionService, ILogger<TransactionController> logger)
         {
-            _context = context;
             _logger = logger;
-            _transactionService = new Services.Transaction.Transaction(_context);
+            _transactionService = transactionService;
         }
 
         [HttpGet(Name = "GetTransactions")]
         public async Task<IActionResult> GetTransactions()
         {
-            _logger.LogInformation("Getting transactions");
-            var response = await _transactionService.GetTransactions();
-            _logger.LogInformation($" {response.Count} transactions retrieved");
-            return Ok(response);
+            try
+            {
+                _logger.LogInformation("Getting transactions");
+                var response = await _transactionService.GetTransactions();
+                if (response == null || response.Count == 0)
+                {
+                    _logger.LogInformation("No transactions found");
+                    return NotFound("No transactions found.");
+                }
+                _logger.LogInformation($" {response.Count} transactions retrieved");
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while getting transactions");
+                return StatusCode(500, "An error occurred while processing your request.");
+            }
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTransactionById(int id)
         {
-            _logger.LogInformation($"Getting transaction with id {id}");
-            var transaction = await _transactionService.GetTransactionById(id);
-            _logger.LogInformation($"Transaction with id {id} retrieved");
-            return Ok(transaction);
+            try
+            {
+                _logger.LogInformation($"Getting transaction with id {id}");
+                var transaction = await _transactionService.GetTransactionById(id);
+                if (transaction == null)
+                {
+                    _logger.LogInformation($"Transaction with id {id} not found");
+                    return NotFound($"Transaction with id {id} not found.");
+                }
+                _logger.LogInformation($"Transaction with id {id} retrieved");
+                return Ok(transaction);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error occurred while getting transaction with id {id}");
+                return StatusCode(500, "An error occurred while processing your request.");
+            }
         }
 
         [HttpPost(Name = "CreateTransaction")]
         public async Task<IActionResult> CreateTransaction([FromBody] DTO.RequestCreateTransaction request)
         {
-            _logger.LogInformation("Creating a new transaction");
-            var transaction = await _transactionService.CreateTransaction(request);
-            _logger.LogInformation($"Transaction with id {transaction.Id} created");
-            return CreatedAtAction(nameof(ActionResult), new { id = transaction.Id }, transaction);
+            try
+            {
+                _logger.LogInformation("Creating a new transaction");
+                var transaction = await _transactionService.CreateTransaction(request);
+                _logger.LogInformation($"Transaction with id {transaction.Id} created");
+                return CreatedAtAction(nameof(ActionResult), new { id = transaction.Id }, transaction);
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while creating transaction");
+                return StatusCode(500, "An error occurred while processing your request.");
+            }
         }
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTransaction(int id, [FromBody] Models.Transaction request)
         {
-            _logger.LogInformation($"Updating transaction with id {id}");
-            var transaction = await _transactionService.UpdateTransaction(request);
-            _logger.LogInformation($"Transaction with id {transaction} updated");
-            return NoContent();
+            try
+            {
+                _logger.LogInformation($"Updating transaction with id {id}");
+                var transaction = await _transactionService.UpdateTransaction(request);
+                _logger.LogInformation($"Transaction with id {transaction} updated");
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error occurred while updating transaction with id {id}");
+                return StatusCode(500, "An error occurred while processing your request.");
+
+            }
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTransaction(int id)
         {
-            _logger.LogInformation($"Deleting transaction with id {id}");
-            var transaction = await _transactionService.DeleteTransaction(id);
-            _logger.LogInformation($"Transaction with id {transaction} deleted");
-            return NoContent();
+            try
+            {
+                _logger.LogInformation($"Deleting transaction with id {id}");
+                var transaction = await _transactionService.DeleteTransaction(id);
+                _logger.LogInformation($"Transaction with id {transaction} deleted");
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error occurred while deleting transaction with id {id}");
+                return StatusCode(500, "An error occurred while processing your request.");
+
+            }
         }
     }
 }
