@@ -28,6 +28,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+using(var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<Kakeibo.Data.AppDbContext>();
+    await Kakeibo.Data.DbInitializer.Initialize(context);
+}
+
 app.UseHttpsRedirection();
 
 app.UseAuthorization();

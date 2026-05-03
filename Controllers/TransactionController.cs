@@ -68,7 +68,7 @@ namespace Kakeibo.Controllers
                 _logger.LogInformation("Creating a new transaction");
                 var transaction = await _transactionService.CreateTransaction(request);
                 _logger.LogInformation($"Transaction with id {transaction.Id} created");
-                return CreatedAtAction(nameof(ActionResult), new { id = transaction.Id }, transaction);
+                return CreatedAtAction(nameof(GetTransactionById), new { id = transaction.Id }, transaction);
 
             }
             catch (Exception ex)

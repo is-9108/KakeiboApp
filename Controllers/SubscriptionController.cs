@@ -105,7 +105,6 @@ namespace Kakeibo.Controllers
             {
                 _logger.LogError(ex, $"Error occurred while deleting subscription with id {id}");
                 return StatusCode(500, "An error occurred while processing your request.");
-
             }
         }
     }
