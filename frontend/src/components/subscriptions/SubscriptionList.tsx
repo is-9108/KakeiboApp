@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Subscription } from "@/types";
 import {
   createSubscription,
@@ -16,12 +15,13 @@ import EmptyState from "@/components/ui/EmptyState";
 
 interface SubscriptionListProps {
   subscriptions: Subscription[];
+  onRefresh: () => void;
 }
 
 export default function SubscriptionList({
   subscriptions,
+  onRefresh,
 }: SubscriptionListProps) {
-  const router = useRouter();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSubscription, setEditingSubscription] =
     useState<Subscription | null>(null);
@@ -29,7 +29,7 @@ export default function SubscriptionList({
   const handleCreate = async (data: { name: string; amount: number }) => {
     await createSubscription({ Name: data.name, Amount: data.amount });
     setIsFormOpen(false);
-    router.refresh();
+    onRefresh();
   };
 
   const handleUpdate = async (data: { name: string; amount: number }) => {
@@ -40,13 +40,13 @@ export default function SubscriptionList({
       amount: data.amount,
     });
     setEditingSubscription(null);
-    router.refresh();
+    onRefresh();
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("このサブスクを削除しますか？")) return;
     await deleteSubscription(id);
-    router.refresh();
+    onRefresh();
   };
 
   const total = subscriptions.reduce((sum, s) => sum + s.amount, 0);

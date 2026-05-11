@@ -1,10 +1,20 @@
-export const dynamic = "force-dynamic";
+"use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { getSubscriptions } from "@/lib/api/subscriptions";
+import { Subscription } from "@/types";
 import SubscriptionList from "@/components/subscriptions/SubscriptionList";
 
-export default async function SubscriptionsPage() {
-  const subscriptions = await getSubscriptions();
+export default function SubscriptionsPage() {
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
 
-  return <SubscriptionList subscriptions={subscriptions} />;
+  const load = useCallback(() => {
+    getSubscriptions().then(setSubscriptions);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return <SubscriptionList subscriptions={subscriptions} onRefresh={load} />;
 }

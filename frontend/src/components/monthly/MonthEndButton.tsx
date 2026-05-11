@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { runMonthEnd } from "@/lib/api/monthly";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 
-export default function MonthEndButton() {
-  const router = useRouter();
+interface MonthEndButtonProps {
+  onRefresh: () => void;
+}
+
+export default function MonthEndButton({ onRefresh }: MonthEndButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -18,7 +20,7 @@ export default function MonthEndButton() {
     try {
       await runMonthEnd();
       setIsOpen(false);
-      router.refresh();
+      onRefresh();
     } catch {
       setError("月末処理に失敗しました");
     } finally {

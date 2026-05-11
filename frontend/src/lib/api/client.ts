@@ -1,8 +1,4 @@
-// サーバー側は直接バックエンドへ、ブラウザ側は Next.js リライトプロキシ経由（CORS回避）
-const BASE_URL =
-  typeof window === "undefined"
-    ? (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5022")
-    : "";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5022";
 
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`;

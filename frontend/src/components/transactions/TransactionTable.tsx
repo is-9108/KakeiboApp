@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Transaction, Category } from "@/types";
 import {
   createTransaction,
@@ -17,13 +16,14 @@ import EmptyState from "@/components/ui/EmptyState";
 interface TransactionTableProps {
   transactions: Transaction[];
   categories: Category[];
+  onRefresh: () => void;
 }
 
 export default function TransactionTable({
   transactions,
   categories,
+  onRefresh,
 }: TransactionTableProps) {
-  const router = useRouter();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState<Transaction | null>(null);
@@ -40,7 +40,7 @@ export default function TransactionTable({
       Memo: data.memo,
     });
     setIsFormOpen(false);
-    router.refresh();
+    onRefresh();
   };
 
   const handleUpdate = async (data: {
@@ -58,13 +58,13 @@ export default function TransactionTable({
       insertDate: data.insertDate,
     });
     setEditingTransaction(null);
-    router.refresh();
+    onRefresh();
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("この取引を削除しますか？")) return;
     await deleteTransaction(id);
-    router.refresh();
+    onRefresh();
   };
 
   return (

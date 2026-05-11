@@ -1,12 +1,19 @@
-export const dynamic = "force-dynamic";
+"use client";
 
+import { useState, useEffect } from "react";
 import { getCategories } from "@/lib/api/categories";
 import { groupCategories } from "@/lib/utils/categoryHelpers";
+import { Category } from "@/types";
 import Badge from "@/components/ui/Badge";
 import EmptyState from "@/components/ui/EmptyState";
 
-export default async function CategoriesPage() {
-  const categories = await getCategories();
+export default function CategoriesPage() {
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    getCategories().then(setCategories);
+  }, []);
+
   const { income, expense } = groupCategories(categories);
 
   return (

@@ -21,6 +21,8 @@ builder.Services.AddDbContext<Kakeibo.Data.AppDbContext>(options =>
 
 var app = builder.Build();
 
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

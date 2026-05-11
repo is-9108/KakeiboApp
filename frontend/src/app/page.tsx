@@ -1,18 +1,28 @@
-export const dynamic = "force-dynamic";
+"use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getTransactions } from "@/lib/api/transactions";
 import { getSubscriptions } from "@/lib/api/subscriptions";
 import { getCategories } from "@/lib/api/categories";
 import { isIncome } from "@/lib/utils/categoryHelpers";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
+import { Transaction, Subscription, Category } from "@/types";
 
-export default async function DashboardPage() {
-  const [transactions, subscriptions, categories] = await Promise.all([
-    getTransactions(),
-    getSubscriptions(),
-    getCategories(),
-  ]);
+export default function DashboardPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    Promise.all([getTransactions(), getSubscriptions(), getCategories()]).then(
+      ([t, s, c]) => {
+        setTransactions(t);
+        setSubscriptions(s);
+        setCategories(c);
+      }
+    );
+  }, []);
 
   const now = new Date();
   const thisMonth = transactions.filter((t) => {
