@@ -1,0 +1,44 @@
+{
+  "checkCommands": [],
+  "testTimeoutSec": 900,
+  "maxTestLoops": 3,
+  "maxReviewLoops": 3,
+  "blockingSeverities": [
+    "blocker",
+    "major"
+  ],
+  "docsDir": "docs",
+  "workDir": ".pi/harness",
+  "issueLabels": [],
+  "ensureLabels": true,
+  "autoHandoff": true,
+  "testIntegrity": true,
+  "testLock": true,
+  "baseline": true,
+  "flakyRetries": 1,
+  "sameFailureLimit": 2,
+  "git": {
+    "enabled": true,
+    "branchPrefix": "issue-",
+    "commit": true,
+    "commitArtifacts": false,
+    "pr": "ask",
+    "draft": false,
+    "dirtyStart": "ask",
+    "pullBase": true
+  },
+  "models": {},
+  "compaction": {
+    "enabled": true,
+    "thresholdPercent": 60
+  },
+  "issueLimits": {
+    "maxAcceptanceCriteria": 5,
+    "allowedSizes": [
+      "S",
+      "M"
+    ],
+    "maxPlanTestCases": 12
+  },
+  "dashboard": true
+}

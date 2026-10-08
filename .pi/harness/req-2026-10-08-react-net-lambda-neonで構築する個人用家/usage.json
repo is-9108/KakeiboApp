@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "sessions": [
+    {
+      "sessionId": "01a11b84-5c31-7795-ac6f-d2c955be3ce6",
+      "process": "hearing",
+      "models": {
+        "openai-codex/gpt-6.1-sol": {
+          "calls": 23,
+          "input": 24029,
+          "output": 6670,
+          "cacheRead": 120704,
+          "cacheWrite": 0,
+          "cost": 0.12682840000000004
+        }
+      },
+      "updatedAt": "2026-10-08T12:45:52.624Z"
+    },
+    {
+      "sessionId": "01a11b8c-768d-7795-ac6f-d2ca987865d6",
+      "process": "requirements",
+      "models": {
+        "openai-codex/gpt-6.1-sol": {
+          "calls": 9,
+          "input": 22918,
+          "output": 22973,
+          "cacheRead": 153088,
+          "cacheWrite": 0,
+          "cost": 0.2908748
+        }
+      },
+      "updatedAt": "2026-10-08T12:56:58.924Z"
+    }
+  ]
+}

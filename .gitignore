@@ -1,0 +1,5 @@
+# piHarness
+.pi/harness/state.json
+.pi/harness/**/logs/
+.pi/harness/**/test-lock/
+.pi/piHarness/
