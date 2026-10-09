@@ -30,6 +30,66 @@
         }
       },
       "updatedAt": "2026-10-08T12:56:58.924Z"
+    },
+    {
+      "sessionId": "01a11b96-a156-7795-ac6f-d2ccd3d4ce6f",
+      "process": "issues",
+      "models": {
+        "openai-codex/gpt-6.1-sol": {
+          "calls": 4,
+          "input": 41531,
+          "output": 16150,
+          "cacheRead": 48768,
+          "cacheWrite": 0,
+          "cost": 0.24943880000000002
+        }
+      },
+      "updatedAt": "2026-10-08T13:06:25.999Z"
+    },
+    {
+      "sessionId": "01a12055-c2d6-7250-9440-a4c695f40a18",
+      "process": "issues",
+      "models": {
+        "openai-codex/gpt-6.1-sol": {
+          "calls": 3,
+          "input": 3563,
+          "output": 139,
+          "cacheRead": 2176,
+          "cacheWrite": 0,
+          "cost": 0.008733600000000001
+        }
+      },
+      "updatedAt": "2026-10-09T11:06:22.055Z"
+    },
+    {
+      "sessionId": "01a12055-8652-730f-8d82-401e3deaac92",
+      "process": "issues",
+      "models": {
+        "openai-codex/gpt-6.1-sol": {
+          "calls": 5,
+          "input": 3563,
+          "output": 173,
+          "cacheRead": 2176,
+          "cacheWrite": 0,
+          "cost": 0.009073600000000001
+        }
+      },
+      "updatedAt": "2026-10-09T11:06:28.372Z"
+    },
+    {
+      "sessionId": "01a12057-5e3d-740c-8b14-7c0c5acafbfb",
+      "process": "issues",
+      "models": {
+        "openai-codex/gpt-6.1-sol": {
+          "calls": 2,
+          "input": 1797,
+          "output": 753,
+          "cacheRead": 3968,
+          "cacheWrite": 0,
+          "cost": 0.0115208
+        }
+      },
+      "updatedAt": "2026-10-09T11:10:03.362Z"
     }
   ]
 }

@@ -40,5 +40,6 @@
     ],
     "maxPlanTestCases": 12
   },
-  "dashboard": true
+  "dashboard": true,
+  "testCommand": "git diff --check"
 }
