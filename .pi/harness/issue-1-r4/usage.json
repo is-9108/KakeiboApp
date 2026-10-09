@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "sessions": [
+    {
+      "sessionId": "01a12089-99cf-740c-8b14-7c1a7a5a827e",
+      "process": "plan",
+      "models": {
+        "openai-codex/gpt-6.1-sol": {
+          "calls": 8,
+          "input": 41608,
+          "output": 4952,
+          "cacheRead": 139776,
+          "cacheWrite": 0,
+          "cost": 0.14671360000000003
+        }
+      },
+      "updatedAt": "2026-10-09T12:04:12.623Z"
+    },
+    {
+      "sessionId": "01a1208c-acd6-740c-8b14-7c1c21ddba7e",
+      "process": "implement",
+      "models": {
+        "openai-codex/gpt-6.1-sol": {
+          "calls": 29,
+          "input": 96774,
+          "output": 12920,
+          "cacheRead": 1367040,
+          "cacheWrite": 0,
+          "cost": 0.4594520000000001
+        }
+      },
+      "updatedAt": "2026-10-09T12:19:53.708Z"
+    },
+    {
+      "sessionId": "01a1209b-08f3-740c-8b14-7c1fbfd45317",
+      "process": "review",
+      "models": {
+        "openai-codex/gpt-6.1-sol": {
+          "calls": 13,
+          "input": 105251,
+          "output": 2254,
+          "cacheRead": 547968,
+          "cacheWrite": 0,
+          "cost": 0.2878388
+        }
+      },
+      "updatedAt": "2026-10-09T12:21:33.952Z"
+    }
+  ]
+}

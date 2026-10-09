@@ -1,0 +1,546 @@
+{
+  "version": 1,
+  "issues": [
+    {
+      "id": "#1",
+      "title": "並行実装用の共通契約を確定する",
+      "number": 1,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/1",
+      "deps": [],
+      "status": "done",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-09T12:21:27.941Z"
+    },
+    {
+      "id": "#2",
+      "title": "最小アプリをローカルで起動できる",
+      "number": 2,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/2",
+      "deps": [
+        "#1"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#3",
+      "title": "基本スキーマをマイグレーションで作成できる",
+      "number": 3,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/3",
+      "deps": [
+        "#2"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#4",
+      "title": "東京の非公開検証APIからDBへTLS接続できる",
+      "number": 4,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/4",
+      "deps": [
+        "#2",
+        "#3"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#5",
+      "title": "CloudFront既定ドメインでWebを配信できる",
+      "number": 5,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/5",
+      "deps": [
+        "#2"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#6",
+      "title": "Cognitoで本人アカウントにTOTPを要求する",
+      "number": 6,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/6",
+      "deps": [
+        "#2"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#7",
+      "title": "APIで未認証・本人以外を拒否する",
+      "number": 7,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/7",
+      "deps": [
+        "#4",
+        "#6"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#8",
+      "title": "本人がWebからMFAログインできる",
+      "number": 8,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/8",
+      "deps": [
+        "#5",
+        "#6",
+        "#7"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#9",
+      "title": "送信失敗時に画面内入力を保持して再試行できる",
+      "number": 9,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/9",
+      "deps": [
+        "#2"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#10",
+      "title": "初期カテゴリを種別別に選択できる",
+      "number": 10,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/10",
+      "deps": [
+        "#3",
+        "#7",
+        "#9"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#11",
+      "title": "種別別にカテゴリを追加できる",
+      "number": 11,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/11",
+      "deps": [
+        "#10"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#12",
+      "title": "有効な取引を手入力して保存できる",
+      "number": 12,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/12",
+      "deps": [
+        "#10"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#13",
+      "title": "カテゴリ名変更を過去取引にも反映する",
+      "number": 13,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/13",
+      "deps": [
+        "#10",
+        "#12"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#14",
+      "title": "未使用カテゴリだけ削除できる",
+      "number": 14,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/14",
+      "deps": [
+        "#10",
+        "#12"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#15",
+      "title": "取引金額の整数・範囲制約を保証する",
+      "number": 15,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/15",
+      "deps": [
+        "#12"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#16",
+      "title": "取引日付の日本暦日・年範囲を保証する",
+      "number": 16,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/16",
+      "deps": [
+        "#12"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#17",
+      "title": "任意メモの500文字制約を保証する",
+      "number": 17,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/17",
+      "deps": [
+        "#12"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#18",
+      "title": "同一登録リクエスト再送で重複保存しない",
+      "number": 18,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/18",
+      "deps": [
+        "#12"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#19",
+      "title": "選択月の取引を合意順で一覧表示する",
+      "number": 19,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/19",
+      "deps": [
+        "#12"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#20",
+      "title": "取引一覧を50件ずつページ移動できる",
+      "number": 20,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/20",
+      "deps": [
+        "#19"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#21",
+      "title": "月別一覧を収支種別・カテゴリで絞り込める",
+      "number": 21,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/21",
+      "deps": [
+        "#19",
+        "#20"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#22",
+      "title": "保存済み取引を編集できる",
+      "number": 22,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/22",
+      "deps": [
+        "#15",
+        "#16",
+        "#17",
+        "#19"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#23",
+      "title": "確認後に取引を削除できる",
+      "number": 23,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/23",
+      "deps": [
+        "#19"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#24",
+      "title": "選択月全体の収支合計・差額を確認できる",
+      "number": 24,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/24",
+      "deps": [
+        "#12"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#25",
+      "title": "月のカテゴリ別支出額・割合を表で確認できる",
+      "number": 25,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/25",
+      "deps": [
+        "#24"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#26",
+      "title": "カテゴリ別支出をグラフで確認できる",
+      "number": 26,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/26",
+      "deps": [
+        "#25"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#27",
+      "title": "個人情報なしの運用ログを30日保持する",
+      "number": 27,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/27",
+      "deps": [
+        "#4",
+        "#7"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#28",
+      "title": "API障害をメール通知する",
+      "number": 28,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/28",
+      "deps": [
+        "#27"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#29",
+      "title": "日次バックアップ方式を選定する",
+      "number": 29,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/29",
+      "deps": [
+        "#1"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#30",
+      "title": "DBバックアップを暗号化・非公開S3へ作成できる",
+      "number": 30,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/30",
+      "deps": [
+        "#3",
+        "#4",
+        "#29"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#31",
+      "title": "DBバックアップを日次実行し30日保持する",
+      "number": 31,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/31",
+      "deps": [
+        "#30"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#32",
+      "title": "バックアップ失敗をメール通知する",
+      "number": 32,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/32",
+      "deps": [
+        "#31"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#33",
+      "title": "バックアップから手動復元できることを確認する",
+      "number": 33,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/33",
+      "deps": [
+        "#31",
+        "#32"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#34",
+      "title": "AWS＋Neon合計費用通知方式を選定する",
+      "number": 34,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/34",
+      "deps": [
+        "#1",
+        "#29"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#35",
+      "title": "合計費用の50%・80%・100%を通知する",
+      "number": 35,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/35",
+      "deps": [
+        "#34"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#36",
+      "title": "公開構成のセキュリティ制約を検証する",
+      "number": 36,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/36",
+      "deps": [
+        "#5",
+        "#8",
+        "#27",
+        "#30"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#37",
+      "title": "10万件でのAPI性能測定手順を確定する",
+      "number": 37,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/37",
+      "deps": [
+        "#1"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#38",
+      "title": "通常API・休止後初回の性能を検証する",
+      "number": 38,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/38",
+      "deps": [
+        "#15",
+        "#16",
+        "#17",
+        "#18",
+        "#21",
+        "#22",
+        "#23",
+        "#26",
+        "#27",
+        "#37"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#39",
+      "title": "最新スマホブラウザで主操作を検証する",
+      "number": 39,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/39",
+      "deps": [
+        "#8",
+        "#11",
+        "#13",
+        "#14",
+        "#18",
+        "#21",
+        "#22",
+        "#23",
+        "#26"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#40",
+      "title": "最新PCブラウザで主操作を検証する",
+      "number": 40,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/40",
+      "deps": [
+        "#8",
+        "#11",
+        "#13",
+        "#14",
+        "#18",
+        "#21",
+        "#22",
+        "#23",
+        "#26"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    },
+    {
+      "id": "#41",
+      "title": "MVPの公開可否を証跡で判定する",
+      "number": 41,
+      "url": "https://github.com/is-9108/KakeiboApp/issues/41",
+      "deps": [
+        "#28",
+        "#33",
+        "#35",
+        "#36",
+        "#38",
+        "#39",
+        "#40"
+      ],
+      "status": "open",
+      "source": ".pi/harness/req-2026-10-08-react-net-lambda-neonで構築する個人用家",
+      "updatedAt": "2026-10-08T13:06:18.420Z"
+    }
+  ]
+}
