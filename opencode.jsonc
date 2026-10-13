@@ -61,7 +61,8 @@
         { "action": "skill", "resource": "create-issue", "effect": "allow" },
       ],
     },
-    // PRレビュー（メインセッション）：review-coordinator に観点別レビューを任せ、返ってきたまとめを検証してPRコメントに投稿する
+    // PRレビュー（メインセッション）：観点別レビューを scripts/review/run-reviewers.sh で独立したセッションとして起動し、
+    // .review/pr-<番号>/round-<回数>/ のmdファイルで結果を受け取って検証し、PRコメントに投稿する
     "review": {
       "description": "PRを多角的にレビューし、指摘を gh でPRコメントとして投稿する",
       "mode": "primary",
@@ -69,38 +70,19 @@
       "model": "opencode-go/deepseek-v4-pro",
       "permissions": [
         { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*.review/pr-*/round-*/request.md", "effect": "allow" },
         { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
         { "action": "skill", "resource": "review-pr", "effect": "allow" },
         { "action": "subagent", "resource": "*", "effect": "deny" },
-        { "action": "subagent", "resource": "review-coordinator", "effect": "allow" },
       ],
     },
-    // review から起動されるサブエージェント。観点別レビューを独立したセッションで実行し（scripts/review/run-reviewers.sh）、
-    // .review/pr-<番号>/round-<回数>/ のmdファイルで結果を受け取ってまとめ、review に返す
-    "review-coordinator": {
-      "description": "観点別レビューを独立セッションで実行し、mdファイルで結果を集めてまとめを返す",
-      "mode": "subagent",
-      // ファイルの受け渡しとまとめだけなので安いモデル（約3,250回/5h）
-      "model": "opencode-go/mimo-v2.6-pro",
-      "permissions": [
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*.review/pr-*/round-*/request.md", "effect": "allow" },
-        { "action": "edit", "resource": "*.review/pr-*/round-*/summary.md", "effect": "allow" },
-        { "action": "subagent", "resource": "*", "effect": "deny" },
-        { "action": "shell", "resource": "git push *", "effect": "deny" },
-        { "action": "shell", "resource": "gh pr comment *", "effect": "deny" },
-        { "action": "shell", "resource": "gh pr review *", "effect": "deny" },
-        { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
-        { "action": "skill", "resource": "review-coordinate", "effect": "allow" },
-      ],
-    },
-    // 以下3つは観点別レビュー。review-coordinator が `opencode run --agent` で独立したセッションとして起動する。
+    // 以下2つは観点別レビュー。review が `opencode run --agent` で独立したセッションとして起動する。
     // 書けるのは自分の結果ファイルだけ。モデルの系統を分けて見落としを減らす
     "review-spec": {
-      "description": "PRが受け入れ条件・プラン・設計（docs/）どおりかを確認し、spec.md に書く",
+      "description": "PRが受け入れ条件・プラン・設計（docs/）どおりか、テストがプランのテストケース一覧を網羅し要件を検証できているかを確認し、spec.md に書く",
       "mode": "primary",
-      // 文書との突き合わせが中心なので安いモデル（約4,300回/5h）
-      "model": "opencode-go/qwen3.7-plus",
+      // 文書・テストとの突き合わせが中心で読む量が多いので安いモデル（約13,000回/5h）
+      "model": "opencode-go/deepseek-v4-flash",
       "permissions": [
         { "action": "edit", "resource": "*", "effect": "deny" },
         { "action": "edit", "resource": "*.review/pr-*/round-*/spec.md", "effect": "allow" },
@@ -115,29 +97,10 @@
         { "action": "skill", "resource": "spec-review", "effect": "allow" },
       ],
     },
-    "review-tests": {
-      "description": "PRのテストがプランのテストケース一覧を網羅し、要件を検証できているかを確認し、tests.md に書く",
-      "mode": "primary",
-      // 読む量が多いので安いモデル（約13,000回/5h）
-      "model": "opencode-go/deepseek-v4-flash",
-      "permissions": [
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*.review/pr-*/round-*/tests.md", "effect": "allow" },
-        { "action": "subagent", "resource": "*", "effect": "deny" },
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "shell", "resource": "git diff *", "effect": "allow" },
-        { "action": "shell", "resource": "git log *", "effect": "allow" },
-        { "action": "shell", "resource": "git show *", "effect": "allow" },
-        { "action": "shell", "resource": "gh pr view *", "effect": "allow" },
-        { "action": "shell", "resource": "gh pr diff *", "effect": "allow" },
-        { "action": "shell", "resource": "gh issue view *", "effect": "allow" },
-        { "action": "skill", "resource": "test-review", "effect": "allow" },
-      ],
-    },
     "review-code": {
       "description": "PRのコードのバグ・エッジケース・セキュリティ・保守性を確認し、code.md に書く",
       "mode": "primary",
-      // implement（glm-5.3）・review（deepseek-v4-pro）と別系統。SWE-bench Verified 85.6%（vals.ai）で、
+      // implement（glm-5.3）・review（deepseek-v4-pro）・review-spec（deepseek-v4-flash）と別系統。SWE-bench Verified 85.6%（vals.ai）で、
       // コードのバグを見つける力が kimi-k2.7-code（78.2%）より高い
       "model": "opencode-go/qwen3.8-max",
       "permissions": [

@@ -12,15 +12,14 @@ opencode の工程別エージェントで開発する。このファイルは�
 | 実装プラン作成（テストケース一覧を含む） | `plan` | `write-plan` |
 | 実装・テストコード作成・テスト実行・PR作成 | `implement` | `create-pr` |
 | PRレビュー（メインセッション） | `review` | `review-pr` |
-| 観点別レビューの連携（`review` のサブエージェント） | `review-coordinator` | `review-coordinate` |
-| 観点別レビュー（独立セッション） | `review-spec`・`review-tests`・`review-code` | `spec-review`・`test-review`・`code-review` |
+| 観点別レビュー（独立セッション） | `review-spec`・`review-code` | `spec-review`・`code-review` |
 | レビュー指摘の修正 | `fix` | `create-pr` |
 | 実装中に見つけたバグ・追加タスクのissue作成 | `implement` / `fix` | `create-issue` |
 | 最終確認・マージ | 人間 | — |
 
 担当する工程の作業を始める前に、表の skill を読み込んで手順に従う。
-観点別レビューの3つは `review-coordinator` が `scripts/review/run-reviewers.sh` で独立したセッションとして起動する。人間が直接起動しない。
-やり取りは `.review/pr-<PR番号>/round-<回数>/` のmdファイルで行う（依頼は `request.md`、結果は `spec.md`・`tests.md`・`code.md`、まとめは `summary.md`）。
+観点別レビューの2つ（仕様・テストを見る `review-spec` と、コードを見る `review-code`）は `review` が `scripts/review/run-reviewers.sh` で独立したセッションとして起動する。人間が直接起動しない。
+やり取りは `.review/pr-<PR番号>/round-<回数>/` のmdファイルで行う（依頼は `request.md`、結果は `spec.md`・`code.md`）。
 自分の担当外の工程は行わない。担当外の作業が必要になったら、どのエージェントに渡すべきかを人間に伝えて止まる。
 
 ## 開発フロー
