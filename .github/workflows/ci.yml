@@ -28,8 +28,9 @@ jobs:
       - name: 疎通確認（smoke test）
         run: |
           docker compose up -d
+          code="000"
           for i in $(seq 1 30); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health)
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health || true)
             if [ "$code" = "200" ]; then break; fi
             sleep 3
           done
