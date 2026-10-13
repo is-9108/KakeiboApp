@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using Npgsql;
@@ -48,6 +49,25 @@ public abstract class EntriesApiTestBase : IClassFixture<KakeiboApiTestFactory>
         ["category"] = "外食費",
         ["memo"] = "昼食",
     };
+
+    /// <summary>指定した値で収支リクエストボディを作る。</summary>
+    protected static Dictionary<string, object?> EntryBody(string date, string type, int amount, string category, string memo = "メモ") => new()
+    {
+        ["date"] = date,
+        ["type"] = type,
+        ["amount"] = amount,
+        ["category"] = category,
+        ["memo"] = memo,
+    };
+
+    /// <summary>収支を1件登録するテスト用ヘルパー。作成されたidを返す。</summary>
+    protected async Task<int> CreateEntryAsync(Dictionary<string, object?> body)
+    {
+        var response = await Client.PostAsync("/api/entries", Json(body));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var json = await JsonBodyAsync(response);
+        return json.GetProperty("id").GetInt32();
+    }
 
     /// <summary>ボディをJSONとして送るためのHttpContentを作る。</summary>
     protected static HttpContent Json(object body) =>

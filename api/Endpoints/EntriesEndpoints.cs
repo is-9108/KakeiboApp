@@ -1,5 +1,7 @@
+using System.Globalization;
 using Kakeibo.Api.Data;
 using Kakeibo.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Kakeibo.Api.Endpoints;
 
@@ -40,6 +42,28 @@ public static class EntriesEndpoints
             await db.SaveChangesAsync();
 
             return Results.Created($"/api/entries/{entry.Id}", EntryResponse.From(entry));
+        });
+
+        entries.MapGet("/", async (KakeiboDbContext db, string? month) =>
+        {
+            if (!DateOnly.TryParseExact(
+                    month, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.None, out var firstDay))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["month"] = ["monthはYYYY-MM形式で指定してください。"],
+                });
+            }
+
+            var lastDay = new DateOnly(
+                firstDay.Year, firstDay.Month, DateTime.DaysInMonth(firstDay.Year, firstDay.Month));
+            var list = await db.Entries
+                .Where(e => e.Date >= firstDay && e.Date <= lastDay)
+                .OrderByDescending(e => e.Date)
+                .ThenBy(e => e.Id)
+                .ToListAsync();
+
+            return Results.Ok(list.Select(EntryResponse.From));
         });
     }
 
