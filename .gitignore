@@ -1,0 +1,17 @@
+# review-coordinator と観点別レビューがやり取りするmdファイル、PRのコードを取り出す作業ツリー
+.review/
+
+# .NET
+api/bin/
+api/obj/
+*.user
+*.suo
+.vs/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
