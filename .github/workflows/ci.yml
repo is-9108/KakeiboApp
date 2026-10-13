@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得する
+        uses: actions/checkout@v4
+
+      - name: 環境変数（.env）を用意する
+        run: |
+          printf 'POSTGRES_USER=kakeibo\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=kakeibo\n' "$(openssl rand -hex 16)" > .env
+
+      - name: コンテナイメージをビルドする
+        run: docker compose build api frontend
+
+      - name: APIのテストを実行する
+        run: docker compose run --rm --no-deps api dotnet test Kakeibo.slnx
+
+      - name: フロントエンドのテストを実行する
+        run: docker compose run --rm --no-deps frontend sh -c "npm ci && npm test"
+
+      - name: 疎通確認（smoke test）
+        run: |
+          docker compose up -d
+          code="000"
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health || true)
+            if [ "$code" = "200" ]; then break; fi
+            sleep 3
+          done
+          echo "/health -> HTTP $code"
+          docker compose ps
+          if [ "$code" != "200" ]; then
+            docker compose logs api db
+            exit 1
+          fi
+          curl -s http://localhost:8080/health
+          echo

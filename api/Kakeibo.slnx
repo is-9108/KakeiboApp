@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/Kakeibo.Api.Tests.csproj" />
+  </Folder>
+  <Project Path="Kakeibo.Api.csproj" />
+</Solution>
