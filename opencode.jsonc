@@ -50,8 +50,9 @@
     "implement": {
       "description": "プランに沿ってテストと実装を書き、テストを実行してPRを作成する",
       "mode": "primary",
-      // 一番回数を使う工程。SWE-bench Verified 80%台なのに安い（約3,200回/5h）
-      "model": "opencode-go/minimax-m3",
+      // 実装・テスト・PR作成の中心。SWE-bench Verified 95.4%（vals.ai）で、
+      // レビュー担当（deepseek-v4-pro・qwen3.8-max）と系統を分ける
+      "model": "opencode-go/glm-5.3",
       "permissions": [
         { "action": "shell", "resource": "git push origin main", "effect": "deny" },
         { "action": "shell", "resource": "git push origin HEAD:main", "effect": "deny" },
@@ -136,8 +137,9 @@
     "review-code": {
       "description": "PRのコードのバグ・エッジケース・セキュリティ・保守性を確認し、code.md に書く",
       "mode": "primary",
-      // コード特化モデル。implement（minimax-m3）と別系統（約1,350回/5h）
-      "model": "opencode-go/kimi-k2.7-code",
+      // implement（glm-5.3）・review（deepseek-v4-pro）と別系統。SWE-bench Verified 85.6%（vals.ai）で、
+      // コードのバグを見つける力が kimi-k2.7-code（78.2%）より高い
+      "model": "opencode-go/qwen3.8-max",
       "permissions": [
         { "action": "edit", "resource": "*", "effect": "deny" },
         { "action": "edit", "resource": "*.review/pr-*/round-*/code.md", "effect": "allow" },
@@ -156,8 +158,9 @@
     "fix": {
       "description": "PRのレビュー指摘を修正して再pushする",
       "mode": "primary",
-      // 修正範囲は小さく回数が多いので安いモデル。implement と別の利用枠（約3,250回/5h）
-      "model": "opencode-go/mimo-v2.6-pro",
+      // 修正範囲は小さいが、コードを直してテストを通す必要がある。SWE-bench Verified 92.0%（vals.ai）で、
+      // 入出力が安い（$0.15/$0.5）
+      "model": "opencode-go/glm-5.3-flash",
       "permissions": [
         { "action": "shell", "resource": "git push origin main", "effect": "deny" },
         { "action": "shell", "resource": "git push origin HEAD:main", "effect": "deny" },
