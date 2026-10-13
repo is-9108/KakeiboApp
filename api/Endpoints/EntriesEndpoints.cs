@@ -65,6 +65,30 @@ public static class EntriesEndpoints
 
             return Results.Ok(list.Select(EntryResponse.From));
         });
+
+        entries.MapPut("/{id:int}", async (int id, EntryRequest request, KakeiboDbContext db) =>
+        {
+            var errors = Validate(request);
+            if (errors.Count > 0)
+            {
+                return Results.ValidationProblem(errors);
+            }
+
+            var entry = await db.Entries.FindAsync(id);
+            if (entry is null)
+            {
+                return Results.NotFound();
+            }
+
+            entry.Date = request.Date!.Value;
+            entry.Type = request.Type!;
+            entry.Amount = request.Amount!.Value;
+            entry.Category = request.Category!;
+            entry.Memo = request.Memo ?? "";
+            await db.SaveChangesAsync();
+
+            return Results.Ok(EntryResponse.From(entry));
+        });
     }
 
     /// <summary>登録・編集リクエストのバリデーション。エラーがあれば項目ごとのメッセージを返す。</summary>
