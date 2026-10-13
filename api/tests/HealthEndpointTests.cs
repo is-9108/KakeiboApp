@@ -1,9 +1,9 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Kakeibo.Api.Tests.Infrastructure;
 
 namespace Kakeibo.Api.Tests;
 
-public class HealthEndpointTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests(KakeiboApiTestFactory factory) : IClassFixture<KakeiboApiTestFactory>
 {
     [Fact]
     public async Task GetHealth_returns_200()
