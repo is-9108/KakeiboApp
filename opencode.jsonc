@@ -1,0 +1,170 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // 工程ごとのエージェント。担当モデルは各エージェントの "model" を書き換えて変える。
+  // 使えるモデルは `opencode models | grep opencode-go` で確認できる。
+  // OpenCode Go の利用枠はモデルごとに別なので、回数の多い工程には別々のモデルを割り当てる。
+  // 「約N回/5h」は Go プランで5時間に使える回数の目安（https://opencode.ai/v2/docs/console/go）。
+  // 共通ルールは AGENTS.md、工程ごとの手順は .opencode/skills/ に書く。ここではモデルと権限だけを決める。
+  // 権限は「すべて許可」が基本で、ここに書いたルールが後勝ちで上書きする。
+  "default_agent": "design",
+  // 全エージェント共通：~/.claude/skills などの外部 skill は使わない。各エージェントで必要な skill だけ許可する
+  "permissions": [
+    { "action": "skill", "resource": "*", "effect": "deny" },
+  ],
+  "agents": {
+    // 要件定義・設計（docs/ に保存）
+    "design": {
+      "description": "要件定義・設計を行い docs/ に保存する",
+      "mode": "primary",
+      // 最上位モデル。高価（約110回/5h）だが使う回数が少ないので最も性能の高いモデルを使う
+      "model": "opencode-go/kimi-k3",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*docs/*", "effect": "allow" },
+      ],
+    },
+    // 設計を受け入れ条件つきのissueに分割する
+    "issue": {
+      "description": "設計をissueに分割し、受け入れ条件つきで gh issue create する",
+      "mode": "primary",
+      // issueを書くだけの作業なので安いモデル（約4,300回/5h）
+      "model": "opencode-go/qwen3.7-plus",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "skill", "resource": "create-issue", "effect": "allow" },
+      ],
+    },
+    // issueごとの実装プラン（テストケース一覧を含む）を docs/plans/ に書く
+    "plan": {
+      "description": "issueごとの実装プランを docs/plans/issue-<番号>.md に書く",
+      "mode": "primary",
+      // テストケースの質が大事なので上位モデル。design と別のモデルにして利用枠を食い合わないようにする（約880回/5h）
+      "model": "opencode-go/glm-5.2",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*docs/plans/*", "effect": "allow" },
+        { "action": "skill", "resource": "write-plan", "effect": "allow" },
+      ],
+    },
+    // 実装・テストコード作成・テスト実行・PR作成・追加issueの作成
+    "implement": {
+      "description": "プランに沿ってテストと実装を書き、テストを実行してPRを作成する",
+      "mode": "primary",
+      // 一番回数を使う工程。SWE-bench Verified 80%台なのに安い（約3,200回/5h）
+      "model": "opencode-go/minimax-m3",
+      "permissions": [
+        { "action": "shell", "resource": "git push origin main", "effect": "deny" },
+        { "action": "shell", "resource": "git push origin HEAD:main", "effect": "deny" },
+        { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
+        { "action": "skill", "resource": "create-pr", "effect": "allow" },
+        { "action": "skill", "resource": "create-issue", "effect": "allow" },
+      ],
+    },
+    // PRレビュー（メインセッション）：review-coordinator に観点別レビューを任せ、返ってきたまとめを検証してPRコメントに投稿する
+    "review": {
+      "description": "PRを多角的にレビューし、指摘を gh でPRコメントとして投稿する",
+      "mode": "primary",
+      // 指摘を検証して最終判断する役。implement と別系統。SWE-bench Verified 80.6%（約1,050回/5h、平日の日本時間10-13時・15-19時はピーク料金）
+      "model": "opencode-go/deepseek-v4-pro",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
+        { "action": "skill", "resource": "review-pr", "effect": "allow" },
+        { "action": "subagent", "resource": "*", "effect": "deny" },
+        { "action": "subagent", "resource": "review-coordinator", "effect": "allow" },
+      ],
+    },
+    // review から起動されるサブエージェント。観点別レビューを独立したセッションで実行し（scripts/review/run-reviewers.sh）、
+    // .review/pr-<番号>/round-<回数>/ のmdファイルで結果を受け取ってまとめ、review に返す
+    "review-coordinator": {
+      "description": "観点別レビューを独立セッションで実行し、mdファイルで結果を集めてまとめを返す",
+      "mode": "subagent",
+      // ファイルの受け渡しとまとめだけなので安いモデル（約3,250回/5h）
+      "model": "opencode-go/mimo-v2.6-pro",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*.review/pr-*/round-*/request.md", "effect": "allow" },
+        { "action": "edit", "resource": "*.review/pr-*/round-*/summary.md", "effect": "allow" },
+        { "action": "subagent", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "git push *", "effect": "deny" },
+        { "action": "shell", "resource": "gh pr comment *", "effect": "deny" },
+        { "action": "shell", "resource": "gh pr review *", "effect": "deny" },
+        { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
+        { "action": "skill", "resource": "review-coordinate", "effect": "allow" },
+      ],
+    },
+    // 以下3つは観点別レビュー。review-coordinator が `opencode run --agent` で独立したセッションとして起動する。
+    // 書けるのは自分の結果ファイルだけ。モデルの系統を分けて見落としを減らす
+    "review-spec": {
+      "description": "PRが受け入れ条件・プラン・設計（docs/）どおりかを確認し、spec.md に書く",
+      "mode": "primary",
+      // 文書との突き合わせが中心なので安いモデル（約4,300回/5h）
+      "model": "opencode-go/qwen3.7-plus",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*.review/pr-*/round-*/spec.md", "effect": "allow" },
+        { "action": "subagent", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "git diff *", "effect": "allow" },
+        { "action": "shell", "resource": "git log *", "effect": "allow" },
+        { "action": "shell", "resource": "git show *", "effect": "allow" },
+        { "action": "shell", "resource": "gh pr view *", "effect": "allow" },
+        { "action": "shell", "resource": "gh pr diff *", "effect": "allow" },
+        { "action": "shell", "resource": "gh issue view *", "effect": "allow" },
+        { "action": "skill", "resource": "spec-review", "effect": "allow" },
+      ],
+    },
+    "review-tests": {
+      "description": "PRのテストがプランのテストケース一覧を網羅し、要件を検証できているかを確認し、tests.md に書く",
+      "mode": "primary",
+      // 読む量が多いので安いモデル（約13,000回/5h）
+      "model": "opencode-go/deepseek-v4-flash",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*.review/pr-*/round-*/tests.md", "effect": "allow" },
+        { "action": "subagent", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "git diff *", "effect": "allow" },
+        { "action": "shell", "resource": "git log *", "effect": "allow" },
+        { "action": "shell", "resource": "git show *", "effect": "allow" },
+        { "action": "shell", "resource": "gh pr view *", "effect": "allow" },
+        { "action": "shell", "resource": "gh pr diff *", "effect": "allow" },
+        { "action": "shell", "resource": "gh issue view *", "effect": "allow" },
+        { "action": "skill", "resource": "test-review", "effect": "allow" },
+      ],
+    },
+    "review-code": {
+      "description": "PRのコードのバグ・エッジケース・セキュリティ・保守性を確認し、code.md に書く",
+      "mode": "primary",
+      // コード特化モデル。implement（minimax-m3）と別系統（約1,350回/5h）
+      "model": "opencode-go/kimi-k2.7-code",
+      "permissions": [
+        { "action": "edit", "resource": "*", "effect": "deny" },
+        { "action": "edit", "resource": "*.review/pr-*/round-*/code.md", "effect": "allow" },
+        { "action": "subagent", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "*", "effect": "deny" },
+        { "action": "shell", "resource": "git diff *", "effect": "allow" },
+        { "action": "shell", "resource": "git log *", "effect": "allow" },
+        { "action": "shell", "resource": "git show *", "effect": "allow" },
+        { "action": "shell", "resource": "gh pr view *", "effect": "allow" },
+        { "action": "shell", "resource": "gh pr diff *", "effect": "allow" },
+        { "action": "shell", "resource": "gh issue view *", "effect": "allow" },
+        { "action": "skill", "resource": "code-review", "effect": "allow" },
+      ],
+    },
+    // レビュー指摘の修正
+    "fix": {
+      "description": "PRのレビュー指摘を修正して再pushする",
+      "mode": "primary",
+      // 修正範囲は小さく回数が多いので安いモデル。implement と別の利用枠（約3,250回/5h）
+      "model": "opencode-go/mimo-v2.6-pro",
+      "permissions": [
+        { "action": "shell", "resource": "git push origin main", "effect": "deny" },
+        { "action": "shell", "resource": "git push origin HEAD:main", "effect": "deny" },
+        { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
+        { "action": "skill", "resource": "create-pr", "effect": "allow" },
+        { "action": "skill", "resource": "create-issue", "effect": "allow" },
+      ],
+    },
+  },
+}
