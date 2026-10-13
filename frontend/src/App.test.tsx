@@ -8,3 +8,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: '家計簿' })).toBeInTheDocument()
   })
 })
+
+it('意図的に失敗するテスト（T6 確認用）', () => {
+  expect(1 + 1).toBe(3)
+})
