@@ -1,4 +1,4 @@
-# review-coordinator と観点別レビューがやり取りするmdファイル、PRのコードを取り出す作業ツリー
+# review と観点別レビューがやり取りするmdファイル、PRのコードを取り出す作業ツリー
 .review/
 
 # .NET

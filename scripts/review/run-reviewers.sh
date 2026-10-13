@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 観点別レビュー（review-spec・review-tests・review-code）を独立したセッションで並行実行する。
-# review-coordinator が使う。
+# 観点別レビュー（review-spec・review-code）を独立したセッションで並行実行する。
+# review が使う。
 #
 # 使い方: scripts/review/run-reviewers.sh <PR番号> <レビュー回数> [観点...]
-#   観点は spec・tests・code から選ぶ。省略すると3つとも実行する。
+#   観点は spec・code から選ぶ。省略すると両方実行する。
 #
 # 実行前に .review/pr-<PR番号>/round-<回数>/request.md を置いておく。
 # 各レビューは同じディレクトリの <観点>.md に結果を書く。
@@ -20,13 +20,13 @@ round=$2
 shift 2
 angles=("$@")
 if [[ ${#angles[@]} -eq 0 ]]; then
-  angles=(spec tests code)
+  angles=(spec code)
 fi
 for angle in "${angles[@]}"; do
   case $angle in
-    spec | tests | code) ;;
+    spec | code) ;;
     *)
-      echo "観点は spec・tests・code のどれか: $angle" >&2
+      echo "観点は spec・code のどちらか: $angle" >&2
       exit 2
       ;;
   esac
