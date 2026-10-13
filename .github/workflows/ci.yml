@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得する
+        uses: actions/checkout@v4
+
+      - name: コンテナイメージをビルドする
+        run: docker compose build api frontend
+
+      - name: APIのテストを実行する
+        run: docker compose run --rm --no-deps api dotnet test Kakeibo.slnx
+
+      - name: フロントエンドのテストを実行する
+        run: docker compose run --rm --no-deps frontend sh -c "npm ci && npm test"
