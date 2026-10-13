@@ -1,21 +1,27 @@
 # KakeiboApp
 
-Claude Code と Codex を併用して開発する。このファイルは両者の共通ルールである。
-Claude Code は `CLAUDE.md` からこのファイルを読み込む。
+opencode の工程別エージェントで開発する。このファイルは全エージェントの共通ルールである。
+エージェントの定義（担当モデルと権限）は `opencode.jsonc`、工程ごとの手順は `.opencode/skills/` にある。
 
 ## 役割分担
 
-| 工程 | 担当 |
-| --- | --- |
-| 要件定義・設計 | Claude Code |
-| issue分割（受け入れ条件つき） | Claude Code |
-| 実装プラン作成（テストケース一覧を含む） | Claude Code |
-| 実装・テストコード作成・テスト実行 | Codex |
-| PR作成 | Codex |
-| PRレビュー | Claude Code |
-| レビュー指摘の修正 | Codex |
-| 実装中に見つけたバグ・追加タスクのissue作成 | Codex |
-| 最終確認・マージ | 人間 |
+| 工程 | 担当エージェント | 使う skill |
+| --- | --- | --- |
+| 要件定義・設計 | `design` | なし |
+| issue分割（受け入れ条件つき） | `issue` | `create-issue` |
+| 実装プラン作成（テストケース一覧を含む） | `plan` | `write-plan` |
+| 実装・テストコード作成・テスト実行・PR作成 | `implement` | `create-pr` |
+| PRレビュー（メインセッション） | `review` | `review-pr` |
+| 観点別レビューの連携（`review` のサブエージェント） | `review-coordinator` | `review-coordinate` |
+| 観点別レビュー（独立セッション） | `review-spec`・`review-tests`・`review-code` | `spec-review`・`test-review`・`code-review` |
+| レビュー指摘の修正 | `fix` | `create-pr` |
+| 実装中に見つけたバグ・追加タスクのissue作成 | `implement` / `fix` | `create-issue` |
+| 最終確認・マージ | 人間 | — |
+
+担当する工程の作業を始める前に、表の skill を読み込んで手順に従う。
+観点別レビューの3つは `review-coordinator` が `scripts/review/run-reviewers.sh` で独立したセッションとして起動する。人間が直接起動しない。
+やり取りは `.review/pr-<PR番号>/round-<回数>/` のmdファイルで行う（依頼は `request.md`、結果は `spec.md`・`tests.md`・`code.md`、まとめは `summary.md`）。
+自分の担当外の工程は行わない。担当外の作業が必要になったら、どのエージェントに渡すべきかを人間に伝えて止まる。
 
 ## 開発フロー
 
@@ -28,11 +34,11 @@ Claude Code は `CLAUDE.md` からこのファイルを読み込む。
 7. 指摘を修正して再pushする。レビューと修正の往復は3回までとし、それでも解決しなければ人間に判断を仰ぐ
 8. 人間が最終確認してマージする
 
-## Codex の役割
+## 守ること
 
-- 実装は `docs/plans/issue-<番号>.md` のプランに従う。プランから外れる場合は、PR本文の「プランからの逸脱」に理由を書く
+- `design`・`issue`・`plan`・`review` は実装コードとテストコードを書かない
+- 実装はプランに従う。プランから外れる場合は、PR本文の「プランからの逸脱」に理由を書く
 - プランのテストケース一覧をすべてテストコードにする。テストを実装に合わせて弱めない
-- PRを作る前に全テストを実行し、結果をPR本文の「テスト」に書く
 - 要件や設計を独断で変えない。判断が必要な点はPR本文かissueコメントで質問する
 - `main` へ直接pushしない。マージもしない
 
@@ -40,8 +46,8 @@ Claude Code は `CLAUDE.md` からこのファイルを読み込む。
 
 - `main` から `<種別>/issue-<番号>-<短い説明>` で切る（例：`feat/issue-12-expense-form`）
 
-## commit・PR
+## commit・PR・issue
 
-- commitメッセージ、PRのタイトルと本文はすべて日本語で書く
+- commitメッセージ、PRとissueのタイトルと本文はすべて日本語で書く
 - commitの件名は種別の接頭辞（`feat:` `fix:` `docs:` `test:` `refactor:` `chore:`）の後ろを日本語にする
-- PR本文は `.github/pull_request_template.md` の見出しをそのまま使い、見出しを足したり削ったりしない。書くことがない見出しには「なし」と書く
+- PR本文は `.github/pull_request_template.md`、issue本文は `.github/ISSUE_TEMPLATE/` の見出しをそのまま使い、見出しを足したり削ったりしない。書くことがない見出しには「なし」と書く
