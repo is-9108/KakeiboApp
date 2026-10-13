@@ -29,6 +29,16 @@ public abstract class EntriesApiTestBase : IClassFixture<KakeiboApiTestFactory>
         command.ExecuteNonQuery();
     }
 
+    /// <summary>entriesテーブルの行数を返す。保存・削除の検証に使う。</summary>
+    protected int CountEntries()
+    {
+        using var connection = new NpgsqlConnection(Factory.TestConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM entries";
+        return Convert.ToInt32(command.ExecuteScalar());
+    }
+
     /// <summary>テストで使う収支リクエストボディの基本形。項目の上書き・削除は各テストで行う。</summary>
     protected static Dictionary<string, object?> EntryBody() => new()
     {

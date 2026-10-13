@@ -1,4 +1,5 @@
 using Kakeibo.Api.Data;
+using Kakeibo.Api.Endpoints;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
+app.MapEntriesEndpoints();
 
 app.Run();
 
