@@ -22,6 +22,12 @@ public static class EntriesEndpoints
 
         entries.MapPost("/", async (EntryRequest request, KakeiboDbContext db) =>
         {
+            var errors = Validate(request);
+            if (errors.Count > 0)
+            {
+                return Results.ValidationProblem(errors);
+            }
+
             var entry = new Entry
             {
                 Date = request.Date!.Value,
@@ -35,5 +41,35 @@ public static class EntriesEndpoints
 
             return Results.Created($"/api/entries/{entry.Id}", EntryResponse.From(entry));
         });
+    }
+
+    /// <summary>登録・編集リクエストのバリデーション。エラーがあれば項目ごとのメッセージを返す。</summary>
+    private static Dictionary<string, string[]> Validate(EntryRequest request)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        if (request.Date is null)
+        {
+            errors["date"] = ["日付は必須です。"];
+        }
+
+        if (string.IsNullOrEmpty(request.Type) || !Presets.Types.Contains(request.Type))
+        {
+            errors["type"] = ["種別は「収入」または「支出」を指定してください。"];
+        }
+
+        if (request.Amount is null or < 1)
+        {
+            errors["amount"] = ["金額は1以上の整数を指定してください。"];
+        }
+
+        if (request.Type is not null && Presets.Types.Contains(request.Type)
+            && (string.IsNullOrEmpty(request.Category)
+                || !Presets.CategoriesFor(request.Type).Contains(request.Category)))
+        {
+            errors["category"] = ["カテゴリは種別に対応するプリセットから指定してください。"];
+        }
+
+        return errors;
     }
 }
