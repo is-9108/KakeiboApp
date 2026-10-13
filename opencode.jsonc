@@ -51,7 +51,7 @@
       "description": "プランに沿ってテストと実装を書き、テストを実行してPRを作成する",
       "mode": "primary",
       // 実装・テスト・PR作成の中心。トークン使用量を抑えるため、試験的に glm-5.3 から flash に下げている。
-      // fix と同じモデルなので利用枠を共有する。レビューの往復回数が増えるようなら glm-5.3 に戻す。
+      // レビューの往復回数が増えるようなら glm-5.3 に戻す。
       // レビュー担当（deepseek-v4-pro・qwen3.8-flash）と系統を分ける
       "model": "opencode-go/glm-5.3-flash",
       "permissions": [
@@ -122,9 +122,9 @@
     "fix": {
       "description": "PRのレビュー指摘を修正して再pushする",
       "mode": "primary",
-      // 修正範囲は小さいが、コードを直してテストを通す必要がある。SWE-bench Verified 92.0%（vals.ai）で、
-      // 入出力が安い（$0.15/$0.5）
-      "model": "opencode-go/glm-5.3-flash",
+      // 修正範囲は小さいが、コードを直してテストを通す必要がある。
+      // implement（glm-5.3-flash）と利用枠を食い合わないよう別のモデルにする
+      "model": "opencode-go/gpt-6-luna",
       "permissions": [
         { "action": "shell", "resource": "git push origin main", "effect": "deny" },
         { "action": "shell", "resource": "git push origin HEAD:main", "effect": "deny" },
