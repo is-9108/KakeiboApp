@@ -78,12 +78,14 @@ public class UpdateEntryTests(KakeiboApiTestFactory factory) : EntriesApiTestBas
         Assert.Equal("外食費", entry.GetProperty("category").GetString());
     }
 
-    // T21: idが数値でない編集リクエストは404を返す
+    // T21: idが数値でない編集・削除リクエストは404を返す
     [Fact]
     public async Task Put_with_non_numeric_id_returns_404()
     {
-        var response = await Client.PutAsync("/api/entries/abc", Json(EntryBody()));
+        var putResponse = await Client.PutAsync("/api/entries/abc", Json(EntryBody()));
+        Assert.Equal(HttpStatusCode.NotFound, putResponse.StatusCode);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var deleteResponse = await Client.DeleteAsync("/api/entries/abc");
+        Assert.Equal(HttpStatusCode.NotFound, deleteResponse.StatusCode);
     }
 }

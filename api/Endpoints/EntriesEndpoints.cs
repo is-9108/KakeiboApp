@@ -89,6 +89,20 @@ public static class EntriesEndpoints
 
             return Results.Ok(EntryResponse.From(entry));
         });
+
+        entries.MapDelete("/{id:int}", async (int id, KakeiboDbContext db) =>
+        {
+            var entry = await db.Entries.FindAsync(id);
+            if (entry is null)
+            {
+                return Results.NotFound();
+            }
+
+            db.Entries.Remove(entry);
+            await db.SaveChangesAsync();
+
+            return Results.NoContent();
+        });
     }
 
     /// <summary>登録・編集リクエストのバリデーション。エラーがあれば項目ごとのメッセージを返す。</summary>
