@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Kakeibo.Api.Tests;
@@ -21,9 +20,9 @@ public class HealthEndpointTests(WebApplicationFactory<Program> factory) : IClas
     {
         using var client = factory.CreateClient();
 
-        var body = await client.GetFromJsonAsync<Dictionary<string, string>>("/health");
+        var response = await client.GetAsync("/health");
 
-        Assert.NotNull(body);
-        Assert.Equal("ok", body["status"]);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("{\"status\":\"ok\"}", await response.Content.ReadAsStringAsync());
     }
 }

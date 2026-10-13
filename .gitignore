@@ -11,6 +11,10 @@ obj/
 # Node
 frontend/node_modules/
 frontend/dist/
+frontend/.vite/
+
+# 環境変数（DBパスワードなど）
+.env
 
 # OS
 .DS_Store
