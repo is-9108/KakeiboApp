@@ -24,6 +24,15 @@ public class CreateEntryTests(KakeiboApiTestFactory factory) : EntriesApiTestBas
         Assert.Equal("外食費", json.GetProperty("category").GetString());
         Assert.Equal("昼食", json.GetProperty("memo").GetString());
         Assert.Equal(1, CountEntries());
+
+        var list = await JsonBodyAsync(await Client.GetAsync("/api/entries?month=2031-01"));
+        var listedEntry = Assert.Single(list.EnumerateArray());
+        Assert.Equal(json.GetProperty("id").GetInt32(), listedEntry.GetProperty("id").GetInt32());
+        Assert.Equal("2031-01-15", listedEntry.GetProperty("date").GetString());
+        Assert.Equal("支出", listedEntry.GetProperty("type").GetString());
+        Assert.Equal(1500, listedEntry.GetProperty("amount").GetInt32());
+        Assert.Equal("外食費", listedEntry.GetProperty("category").GetString());
+        Assert.Equal("昼食", listedEntry.GetProperty("memo").GetString());
     }
 
     // T2: メモを省略して登録すると、メモが空の状態で登録される
@@ -52,6 +61,11 @@ public class CreateEntryTests(KakeiboApiTestFactory factory) : EntriesApiTestBas
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal("", json.GetProperty("memo").GetString());
+
+        var list = await JsonBodyAsync(await Client.GetAsync("/api/entries?month=2031-01"));
+        var listedEntry = Assert.Single(list.EnumerateArray());
+        Assert.Equal(json.GetProperty("id").GetInt32(), listedEntry.GetProperty("id").GetInt32());
+        Assert.Equal("", listedEntry.GetProperty("memo").GetString());
     }
 
     // T18: 金額の下限（1円）で登録できる

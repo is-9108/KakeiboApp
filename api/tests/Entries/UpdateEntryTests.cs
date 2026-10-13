@@ -78,6 +78,114 @@ public class UpdateEntryTests(KakeiboApiTestFactory factory) : EntriesApiTestBas
         Assert.Equal("外食費", entry.GetProperty("category").GetString());
     }
 
+    // PUTはPOSTと同じ必須項目を要求し、不正な更新では既存データを変更しない
+    [Theory]
+    [InlineData("date")]
+    [InlineData("type")]
+    [InlineData("amount")]
+    [InlineData("category")]
+    public async Task Put_without_required_field_returns_400_and_keeps_data(string missingField)
+    {
+        var id = await CreateEntryAsync(EntryBody());
+        var body = EntryBody("2031-02-01", "収入", 50000, "給与", "月給");
+        body.Remove(missingField);
+
+        var response = await Client.PutAsync($"/api/entries/{id}", Json(body));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertOriginalEntryRemains(id);
+    }
+
+    // PUTの金額が0以下、または整数でない場合は400となり、既存データを変更しない
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task Put_with_non_positive_amount_returns_400_and_keeps_data(int amount)
+    {
+        var id = await CreateEntryAsync(EntryBody());
+        var body = EntryBody("2031-02-01", "収入", amount, "給与", "月給");
+
+        var response = await Client.PutAsync($"/api/entries/{id}", Json(body));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertOriginalEntryRemains(id);
+    }
+
+    [Fact]
+    public async Task Put_with_decimal_amount_returns_400_and_keeps_data()
+    {
+        var id = await CreateEntryAsync(EntryBody());
+        var body = EntryBody("2031-02-01", "収入", 50000, "給与", "月給");
+        body["amount"] = 1000.5;
+
+        var response = await Client.PutAsync($"/api/entries/{id}", Json(body));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertOriginalEntryRemains(id);
+    }
+
+    // PUTの日付が不正な場合は400となり、既存データを変更しない
+    [Theory]
+    [InlineData("2031/02/01")]
+    [InlineData("2031-13-01")]
+    [InlineData("abc")]
+    public async Task Put_with_invalid_date_returns_400_and_keeps_data(string date)
+    {
+        var id = await CreateEntryAsync(EntryBody());
+        var body = EntryBody("2031-02-01", "収入", 50000, "給与", "月給");
+        body["date"] = date;
+
+        var response = await Client.PutAsync($"/api/entries/{id}", Json(body));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertOriginalEntryRemains(id);
+    }
+
+    // PUTでプリセットにないカテゴリを指定すると400となり、既存データを変更しない
+    [Fact]
+    public async Task Put_with_unknown_category_returns_400_and_keeps_data()
+    {
+        var id = await CreateEntryAsync(EntryBody());
+        var body = EntryBody("2031-02-01", "収入", 50000, "給与", "月給");
+        body["category"] = "旅行";
+
+        var response = await Client.PutAsync($"/api/entries/{id}", Json(body));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await AssertOriginalEntryRemains(id);
+    }
+
+    // PUTでメモを省略すると空文字に置換される
+    [Fact]
+    public async Task Put_without_memo_clears_existing_memo()
+    {
+        var id = await CreateEntryAsync(EntryBody());
+        var body = EntryBody("2031-02-01", "収入", 50000, "給与");
+        body.Remove("memo");
+
+        var response = await Client.PutAsync($"/api/entries/{id}", Json(body));
+        var updated = await JsonBodyAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("", updated.GetProperty("memo").GetString());
+        var list = await JsonBodyAsync(await Client.GetAsync("/api/entries?month=2031-02"));
+        var listedEntry = Assert.Single(list.EnumerateArray());
+        Assert.Equal(id, listedEntry.GetProperty("id").GetInt32());
+        Assert.Equal("", listedEntry.GetProperty("memo").GetString());
+    }
+
+    private async Task AssertOriginalEntryRemains(int id)
+    {
+        var list = await JsonBodyAsync(await Client.GetAsync("/api/entries?month=2031-01"));
+        var entry = Assert.Single(list.EnumerateArray());
+        Assert.Equal(id, entry.GetProperty("id").GetInt32());
+        Assert.Equal("2031-01-15", entry.GetProperty("date").GetString());
+        Assert.Equal("支出", entry.GetProperty("type").GetString());
+        Assert.Equal(1500, entry.GetProperty("amount").GetInt32());
+        Assert.Equal("外食費", entry.GetProperty("category").GetString());
+        Assert.Equal("昼食", entry.GetProperty("memo").GetString());
+    }
+
     // T21: idが数値でない編集・削除リクエストは404を返す
     [Fact]
     public async Task Put_with_non_numeric_id_returns_404()
