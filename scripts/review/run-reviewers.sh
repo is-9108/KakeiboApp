@@ -22,14 +22,18 @@ angles=("$@")
 if [[ ${#angles[@]} -eq 0 ]]; then
   angles=(spec code)
 fi
+# 観点とモデルの対応（唯一の定義箇所）。`opencode run --agent` がエージェントの model 設定を
+# 反映しないことがあるため、ここでモデルを明示する。opencode.jsonc の review-spec / review-code の
+# model と一致させること（モデルを変えるときは opencode.jsonc とここを両方更新する）。
+declare -A reviewer_models=(
+  [spec]="opencode-go/deepseek-v4-flash"
+  [code]="opencode-go/qwen3.8-flash"
+)
 for angle in "${angles[@]}"; do
-  case $angle in
-    spec | code) ;;
-    *)
-      echo "観点は spec・code のどちらか: $angle" >&2
-      exit 2
-      ;;
-  esac
+  if [[ ! -v reviewer_models[$angle] ]]; then
+    echo "観点は spec・code のどちらか: $angle" >&2
+    exit 2
+  fi
 done
 
 cd "$(git rev-parse --show-toplevel)"
@@ -50,14 +54,8 @@ git rev-parse "refs/review/pr-$pr" >"$dir/head.txt"
 pids=()
 for angle in "${angles[@]}"; do
   out="$dir/$angle.md"
-  # `opencode run --agent` がエージェントの model 設定を反映しないことがあるため、観点ごとのモデルを明示する。
-  # opencode.jsonc の review-spec / review-code の model と一致させること。
-  case "$angle" in
-    spec) model="opencode-go/deepseek-v4-flash" ;;
-    code) model="opencode-go/qwen3.8-flash" ;;
-  esac
   rm -f "$out"
-  opencode run --agent "review-$angle" --model "$model" --auto \
+  opencode run --agent "review-$angle" --model "${reviewer_models[$angle]}" --auto \
     --title "PR #$pr レビュー${round}回目 $angle" \
     --file "$request" \
     "依頼ファイル $request に従ってレビューし、結果を $out に書いてください。" \
