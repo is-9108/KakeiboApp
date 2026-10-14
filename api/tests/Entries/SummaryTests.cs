@@ -117,6 +117,73 @@ public class SummaryTests(KakeiboApiTestFactory factory) : EntriesApiTestBase(fa
         Assert.Equal(0, json.GetProperty("expenseBreakdown").GetArrayLength());
     }
 
+    // T8: 月の指定が「YYYY-MM」形式でないリクエストは400を返す
+    [Theory]
+    [InlineData(null)]
+    [InlineData("2031-1")]
+    [InlineData("2031-13")]
+    [InlineData("2031-00")]
+    [InlineData("abc")]
+    public async Task Get_with_invalid_month_returns_400(string? month)
+    {
+        var url = month is null ? "/api/entries/summary" : $"/api/entries/summary?month={month}";
+
+        var response = await Client.GetAsync(url);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // T9: 他の月の収支は集計結果に含まれない（前月末・翌月初を排除し、月初・月末を含める）
+    [Fact]
+    public async Task Get_excludes_adjacent_months()
+    {
+        await CreateEntryAsync(EntryBody("2030-12-31", "支出", 100, "日用品"));
+        await CreateEntryAsync(EntryBody("2031-01-01", "支出", 100, "日用品"));
+        await CreateEntryAsync(EntryBody("2031-01-31", "支出", 100, "日用品"));
+        await CreateEntryAsync(EntryBody("2031-02-01", "支出", 100, "日用品"));
+
+        var response = await Client.GetAsync("/api/entries/summary?month=2031-01");
+        var json = await JsonBodyAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(200, json.GetProperty("expenseTotal").GetInt32());
+    }
+
+    // T10: 構成比はちょうど中間の値が繰り上がる（四捨五入。banker's rounding でない）
+    [Fact]
+    public async Task Get_rounds_percentage_half_up()
+    {
+        await CreateEntryAsync(EntryBody("2031-01-05", "支出", 53, "外食費"));
+        await CreateEntryAsync(EntryBody("2031-01-15", "支出", 27, "食費"));
+
+        var response = await Client.GetAsync("/api/entries/summary?month=2031-01");
+        var json = await JsonBodyAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var rows = json.GetProperty("expenseBreakdown").EnumerateArray().ToList();
+        Assert.Equal(
+            [53, 27], rows.Select(r => r.GetProperty("amount").GetInt32()).ToArray());
+        Assert.Equal(
+            [66.3m, 33.8m], rows.Select(r => r.GetProperty("percentage").GetDecimal()).ToArray());
+    }
+
+    // T11: 支出が1カテゴリのみの月は構成比100%を返す
+    [Fact]
+    public async Task Get_returns_100_percentage_for_single_category()
+    {
+        await CreateEntryAsync(EntryBody("2031-01-05", "支出", 1000, "外食費"));
+
+        var response = await Client.GetAsync("/api/entries/summary?month=2031-01");
+        var json = await JsonBodyAsync(response);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var rows = json.GetProperty("expenseBreakdown").EnumerateArray().ToList();
+        var row = Assert.Single(rows);
+        Assert.Equal("外食費", row.GetProperty("category").GetString());
+        Assert.Equal(1000, row.GetProperty("amount").GetInt32());
+        Assert.Equal(100m, row.GetProperty("percentage").GetDecimal());
+    }
+
     // T2と同じ前提データ（2031-01に支出3件）を作る
     private async Task CreateExpenseFixtureAsync()
     {
