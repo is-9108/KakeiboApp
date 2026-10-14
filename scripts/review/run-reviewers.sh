@@ -50,8 +50,14 @@ git rev-parse "refs/review/pr-$pr" >"$dir/head.txt"
 pids=()
 for angle in "${angles[@]}"; do
   out="$dir/$angle.md"
+  # `opencode run --agent` がエージェントの model 設定を反映しないことがあるため、観点ごとのモデルを明示する。
+  # opencode.jsonc の review-spec / review-code の model と一致させること。
+  case "$angle" in
+    spec) model="opencode-go/deepseek-v4-flash" ;;
+    code) model="opencode-go/qwen3.8-flash" ;;
+  esac
   rm -f "$out"
-  opencode run --agent "review-$angle" --auto \
+  opencode run --agent "review-$angle" --model "$model" --auto \
     --title "PR #$pr レビュー${round}回目 $angle" \
     --file "$request" \
     "依頼ファイル $request に従ってレビューし、結果を $out に書いてください。" \
