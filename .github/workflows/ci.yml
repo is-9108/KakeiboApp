@@ -26,9 +26,7 @@ jobs:
         run: docker compose run --rm --no-deps frontend sh -c "npm ci && npm test"
 
       - name: フロントエンドのビルド確認
-        run: docker compose run --rm --no-deps frontend sh -c "npm run build"
-
-      - name: 疎通確認（smoke test）
+        run: docker compose run --rm --no-deps frontend sh -c "npm run build"      - name: 疎通確認（smoke test）
         run: |
           docker compose up -d
           code="000"
