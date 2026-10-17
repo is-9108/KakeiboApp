@@ -16,8 +16,8 @@
     "design": {
       "description": "要件定義・設計を行い docs/ に保存する",
       "mode": "primary",
-      // 最上位モデル。高価（約110回/5h）だが使う回数が少ないので最も性能の高いモデルを使う
-      "model": "opencode-go/kimi-k3",
+      // 設計の質が重要なため上位モデル。plan と同一の glm-5.2（約880回/5h）を使う
+      "model": "opencode-go/glm-5.2",
       "permissions": [
         { "action": "edit", "resource": "*", "effect": "deny" },
         { "action": "edit", "resource": "*docs/*", "effect": "allow" },
