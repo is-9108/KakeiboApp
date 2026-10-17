@@ -12,7 +12,9 @@ public abstract class EntriesApiTestBase : IClassFixture<KakeiboApiTestFactory>
     protected EntriesApiTestBase(KakeiboApiTestFactory factory)
     {
         Factory = factory;
+        // Client生成時にCreateHost→CreateTestDatabaseが走り、テスト用DBとマイグレーションが終わる
         Client = factory.CreateClient();
+        Client.DefaultRequestHeaders.Authorization = factory.CreateBearerHeader();
         TruncateEntries();
     }
 
