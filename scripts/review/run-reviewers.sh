@@ -26,7 +26,7 @@ fi
 # 反映しないことがあるため、ここでモデルを明示する。opencode.jsonc の review-spec / review-code の
 # model と一致させること（モデルを変えるときは opencode.jsonc とここを両方更新する）。
 declare -A reviewer_models=(
-  [spec]="opencode-go/deepseek-v4-flash"
+  [spec]="opencode/deepseek-v4.1-flash-free"
   [code]="opencode-go/qwen3.8-flash"
 )
 for angle in "${angles[@]}"; do

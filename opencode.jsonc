@@ -1,7 +1,7 @@
 {
   "$schema": "https://opencode.ai/config.json",
   // 工程ごとのエージェント。担当モデルは各エージェントの "model" を書き換えて変える。
-  // 使えるモデルは `opencode models | grep opencode-go` で確認できる。
+  // 使えるモデルは `opencode models` で確認できる（opencode-go/... は Go プラン枠、opencode/...-free は無料枠、openai/... は codex 枠）。
   // OpenCode Go の利用枠はモデルごとに別なので、回数の多い工程には別々のモデルを割り当てる。
   // 「約N回/5h」は Go プランで5時間に使える回数の目安（https://opencode.ai/v2/docs/console/go）。
   // 共通ルールは AGENTS.md、工程ごとの手順は .opencode/skills/ に書く。ここではモデルと権限だけを決める。
@@ -16,8 +16,9 @@
     "design": {
       "description": "要件定義・設計を行い docs/ に保存する",
       "mode": "primary",
-      // 最上位モデル。高価（約110回/5h）だが使う回数が少ないので最も性能の高いモデルを使う
-      "model": "opencode-go/kimi-k3",
+      // 要件定義・設計は複雑な判断が要るので codex の最上位コーディングモデル gpt-6.1-sol を使う。
+      // plan と同じモデルで codex の上限はアカウント単位に消費されるが、どちらも低頻度の工程なので許容
+      "model": "openai/gpt-6.1-sol",
       "permissions": [
         { "action": "edit", "resource": "*", "effect": "deny" },
         { "action": "edit", "resource": "*docs/*", "effect": "allow" },
@@ -38,8 +39,9 @@
     "plan": {
       "description": "issueごとの実装プランを docs/plans/issue-<番号>.md に書く",
       "mode": "primary",
-      // テストケースの質が大事なので上位モデル。design と別のモデルにして利用枠を食い合わないようにする（約880回/5h）
-      "model": "opencode-go/glm-5.2",
+      // テストケースの質が大事なので、design と同じ codex の最上位モデル gpt-6.1-sol を使う。
+      // codex の上限はアカウント単位なので Go プラン枠のように別モデルに分ける意味は薄い
+      "model": "openai/gpt-6.1-sol",
       "permissions": [
         { "action": "edit", "resource": "*", "effect": "deny" },
         { "action": "edit", "resource": "*docs/plans/*", "effect": "allow" },
@@ -50,10 +52,10 @@
     "implement": {
       "description": "プランに沿ってテストと実装を書き、テストを実行してPRを作成する",
       "mode": "primary",
-      // 実装・テスト・PR作成の中心。トークン使用量を抑えるため、試験的に glm-5.3 から flash に下げている。
+      // 実装・テスト・PR作成の中心。最もトークンを使う工程なので無料枠の glm-5.3-flash-free を使う。
       // レビューの往復回数が増えるようなら glm-5.3 に戻す。
       // レビュー担当（deepseek-v4-pro・qwen3.8-flash）と系統を分ける
-      "model": "opencode-go/glm-5.3-flash",
+      "model": "opencode/glm-5.3-flash-free",
       "permissions": [
         { "action": "shell", "resource": "git push origin main", "effect": "deny" },
         { "action": "shell", "resource": "git push origin HEAD:main", "effect": "deny" },
@@ -82,8 +84,9 @@
     "review-spec": {
       "description": "PRが受け入れ条件・プラン・設計（docs/）どおりか、テストがプランのテストケース一覧を網羅し要件を検証できているかを確認し、spec.md に書く",
       "mode": "primary",
-      // 文書・テストとの突き合わせが中心で読む量が多いので安いモデル（約13,000回/5h）
-      "model": "opencode-go/deepseek-v4-flash",
+      // 文書・テストとの突き合わせが中心で読む量が多いので無料枠のモデル。
+      // implement（glm-5.3-flash-free）と別系統の DeepSeek を維持する
+      "model": "opencode/deepseek-v4.1-flash-free",
       "permissions": [
         { "action": "edit", "resource": "*", "effect": "deny" },
         { "action": "edit", "resource": "*.review/pr-*/round-*/spec.md", "effect": "allow" },
@@ -101,7 +104,7 @@
     "review-code": {
       "description": "PRのコードのバグ・エッジケース・セキュリティ・保守性を確認し、code.md に書く",
       "mode": "primary",
-      // implement（glm-5.3-flash）・review（deepseek-v4-pro）・review-spec（deepseek-v4-flash）と別系統。
+      // implement（glm-5.3-flash-free）・review（deepseek-v4-pro）・review-spec（deepseek-v4.1-flash-free）と別系統。
       // トークン使用量を抑えるため、試験的に qwen3.8-max から flash に下げている。見落としが増えるようなら qwen3.8-max に戻す
       "model": "opencode-go/qwen3.8-flash",
       "permissions": [
@@ -123,8 +126,9 @@
       "description": "PRのレビュー指摘を修正して再pushする",
       "mode": "primary",
       // 修正範囲は小さいが、コードを直してテストを通す必要がある。
-      // implement（glm-5.3-flash）と利用枠を食い合わないよう別のモデルにする
-      "model": "opencode-go/gpt-6-luna",
+      // implement（無料枠の glm-5.3-flash-free）と別系統にして見落としを減らす。
+      // 同モデルを Go プラン枠から codex 枠に移したもの
+      "model": "openai/gpt-6-luna",
       "permissions": [
         { "action": "shell", "resource": "git push origin main", "effect": "deny" },
         { "action": "shell", "resource": "git push origin HEAD:main", "effect": "deny" },
