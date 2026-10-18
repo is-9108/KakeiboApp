@@ -19,6 +19,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://0.0.0.0:8080
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-kakeibo};Username=${POSTGRES_USER:-kakeibo};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD を .env に設定してください}"
+      # 空のときはテスト用プレースホルダで起動する（実Cognitoではログイン不可）
+      Cognito__Region: ${COGNITO_REGION:-us-east-1}
+      Cognito__UserPoolId: ${COGNITO_USER_POOL_ID:-us-east-1_localtestpool}
+      Cognito__AppClientId: ${COGNITO_APP_CLIENT_ID:-localtestclient}
     ports:
       - "8080:8080"
     depends_on:
@@ -31,9 +35,15 @@ services:
     build: ./frontend
     ports:
       - "5173:5173"
+    environment:
+      # ブラウザに渡るCognito設定。実Cognitoで確認するときは .env に実値を設定する
+      VITE_COGNITO_REGION: ${COGNITO_REGION:-us-east-1}
+      VITE_COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-us-east-1_localtestpool}
+      VITE_COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-localtestclient}
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend-node-modules:/app/node_modules
 
 volumes:
   db-data:
+  frontend-node-modules:
