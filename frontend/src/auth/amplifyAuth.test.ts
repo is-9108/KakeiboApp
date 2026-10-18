@@ -18,7 +18,15 @@ vi.mock('aws-amplify/auth', () => ({
 vi.mock('aws-amplify/auth/cognito', () => ({ cognitoUserPoolsTokenProvider: tokenProvider }))
 
 // amplifyAuthはaws-amplify/authの関数をラップするだけなので実物を使う
-import { configureCognito, fetchSession, signIn, completeNewPassword, signOutUser, SignInStep } from './amplifyAuth'
+import {
+  configureCognito,
+  fetchSession,
+  isSessionExpiredError,
+  signIn,
+  completeNewPassword,
+  signOutUser,
+  SignInStep,
+} from './amplifyAuth'
 import type { Mock } from 'vitest'
 
 const mockFetchAuthSession = fetchAuthSession as Mock
@@ -100,5 +108,24 @@ describe('amplifyAuth', () => {
 
   it('SignInStep.confirmSignUpNewPasswordRequiredはCognitoのチャレンジ名と一致する', () => {
     expect(SignInStep.confirmSignUpNewPasswordRequired).toBe('CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED')
+  })
+
+  it.each([
+    'NotAuthorizedException',
+    'InvalidGrantException',
+    'RefreshTokenExpiredException',
+    'TokenRefreshException',
+  ])('isSessionExpiredErrorは失効エラー %s をtrueと判定する', (name) => {
+    expect(isSessionExpiredError(Object.assign(new Error('session expired'), { name }))).toBe(true)
+  })
+
+  it.each([
+    Object.assign(new Error('network unavailable'), { name: 'NetworkError' }),
+    Object.assign(new Error('unknown failure'), { name: 'UnknownError' }),
+    new Error('ordinary error'),
+    null,
+    undefined,
+  ])('isSessionExpiredErrorは通信障害や通常のエラーを失効扱いしない', (error) => {
+    expect(isSessionExpiredError(error)).toBe(false)
   })
 })

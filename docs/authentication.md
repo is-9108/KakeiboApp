@@ -82,7 +82,7 @@ curl -i -H "Authorization: Bearer $TOKEN" 'http://localhost:8080/api/entries?mon
 - **API側の認証テストは実Cognitoに依存しない。** テスト用RSA鍵ペア（`TestSigningKeys`）で署名したトークンを、アプリ側はその公開鍵で検証する（`KakeiboApiTestFactory` がJWKSを差し替える）。CIでもAWS認証情報は不要。
 - **フロントのテストはaws-amplifyをモックする**（`vi.mock`）。実Cognitoへの通信は発生しない。
 - 正常系・異常系（不正署名・期限切れ・iss/client_idクレーム不正・IDトークン・欠落）・境界値（`exp`が現在時刻−1秒）を `api/tests/Authentication/AuthGuardTests.cs` でカバーしている。
-- 実Cognitoでの手動確認（ログイン・初回パスワード変更・ログアウト・自己登録無効）は自動テストではカバーしない。PR #17では未実施のため、マージ前に担当者が実施して結果を記録する。
+- 実Cognitoでの手動確認（ログイン・初回パスワード変更・ログアウト・自己登録無効）は自動テストではカバーしない。PR #17ではログイン・ページ表示まで確認済みとの報告がある。他の項目とAPIのHTTP 200、自己登録拒否の実環境確認は未確認のため、マージ前に確認して結果を記録する。
 
 ## 既知の制約
 
