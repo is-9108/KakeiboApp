@@ -86,5 +86,5 @@ curl -i -H "Authorization: Bearer $TOKEN" 'http://localhost:8080/api/entries?mon
 
 ## 既知の制約
 
-- アクセストークンはAmplify v6の既定ロケーション（ブラウザのローカルストレージ）に保存される。`signOut()`でAmplify側セッションとトークンを消す。
+- アクセストークンなどのCognitoセッション情報は`sessionStorage`に保存され、現在のタブに限定される。タブを閉じると消去される。`signOut()`でAmplify側セッションとトークンを消す。
 - ログアウト済みでも、Aトークンをコピーしていたユーザーはトークンの`exp`までAPIを呼べる（JWT検証の限界：取り消し機構はこのissueでは入れない）。
