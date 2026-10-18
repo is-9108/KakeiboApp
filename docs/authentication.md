@@ -16,9 +16,15 @@
    - 認証フロー：`ALLOW_USER_SRP_AUTH`（ユーザー名・パスワードのSRP）
    - **シークレットキーなし**（SPA用）
    - サインアップAPIを明示的に許可しない（↓の手順で無効化）
-3. User Poolのポリシー設定でサインアップを無効化する（▽ 自己サインアップ防止）
-   - AWS CLIの場合：`aws cognito-idp update-user-pool --user-pool-id <POOL_ID> --policies ... --user-attribute-update-settings ...`
-   - またはマネジメントコンソールで「Self-service account recovery / Sign-up」を確認
+3. User Poolで自己サインアップを禁止する
+   - マネジメントコンソールの **Sign-up experience → Self-service sign-up** で自己登録を無効にする（管理者作成ユーザーのみ許可）。
+   - AWS CLIでは `AdminCreateUserConfig.AllowAdminCreateUserOnly=true` が該当する。設定値を確認する例：
+     ```bash
+     aws cognito-idp describe-user-pool --user-pool-id <POOL_ID> \
+       --query 'UserPool.AdminCreateUserConfig.AllowAdminCreateUserOnly'
+     ```
+     CLIで `update-user-pool --admin-create-user-config AllowAdminCreateUserOnly=true` を使う場合、Cognitoは省略された既存設定を既定値へ戻すことがある。`describe-user-pool` で既存設定を保存し、他のUser Pool設定を保持したうえで更新すること。既存設定の扱いに不慣れな場合はコンソールで変更する。
+   - 設定後、未認証のSignUp APIが拒否されることを確認する。アプリに登録画面がないことだけではサインアップ無効の証明にならない。
 4. ユーザーは**管理者が作成**する：
    ```bash
    aws cognito-idp admin-create-user \
@@ -30,7 +36,7 @@
      --user-pool-id <POOL_ID> --username user@example.com \
      --password '<恒久パスワード>' --permanent
    ```
-   ※`--permanent false`（一時パスワード）にした場合は、フロントの初回ログインでパスワード変更画面が出る（正常系）。
+   ※一時パスワードにする場合は `--no-permanent` を指定する。フロントの初回ログインでパスワード変更画面が出る。
 
 ## ローカル環境での設定
 
@@ -45,6 +51,7 @@ COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxxxxx
 - APIには `Cognito__*` 環境変数として渡る（`docker-compose.yml`参照）。
 - フロントには `VITE_COGNITO_*` として渡る（Viteの環境変数仕様：`import.meta.env`）。
 - **値を空にすると**、APIはテスト用プレースホルダ値（authは実Cognitoに到達できないが、テストは通る）で起動する。実Cognito確認のときは必ず実値を設定する。
+- `COGNITO_USER_POOL_ID` は `<COGNITO_REGION>_<Pool ID>` の形式、App Client IDは英数字であることをAPI起動時に検証する。
 
 ## ローカルでの起動と確認
 
@@ -75,9 +82,9 @@ curl -i -H "Authorization: Bearer $TOKEN" 'http://localhost:8080/api/entries?mon
 - **API側の認証テストは実Cognitoに依存しない。** テスト用RSA鍵ペア（`TestSigningKeys`）で署名したトークンを、アプリ側はその公開鍵で検証する（`KakeiboApiTestFactory` がJWKSを差し替える）。CIでもAWS認証情報は不要。
 - **フロントのテストはaws-amplifyをモックする**（`vi.mock`）。実Cognitoへの通信は発生しない。
 - 正常系・異常系（不正署名・期限切れ・iss/client_idクレーム不正・IDトークン・欠落）・境界値（`exp`が現在時刻−1秒）を `api/tests/Authentication/AuthGuardTests.cs` でカバーしている。
-- 実Cognitoでの手動確認（ログイン・初回パスワード変更・ログアウト・自己登録無効）はPR作成者が行う（自動テストではカバーしない）。
+- 実Cognitoでの手動確認（ログイン・初回パスワード変更・ログアウト・自己登録無効）は自動テストではカバーしない。PR #17では未実施のため、マージ前に担当者が実施して結果を記録する。
 
 ## 既知の制約
 
-- アクセストークンは`sessionStorage`等に保存されなくなった（Amplify v6の既定ロケーションはブラウザのローカルストレージ）。`signOut()`でAmplify側セッションとトークンを消す。
+- アクセストークンはAmplify v6の既定ロケーション（ブラウザのローカルストレージ）に保存される。`signOut()`でAmplify側セッションとトークンを消す。
 - ログアウト済みでも、Aトークンをコピーしていたユーザーはトークンの`exp`までAPIを呼べる（JWT検証の限界：取り消し機構はこのissueでは入れない）。

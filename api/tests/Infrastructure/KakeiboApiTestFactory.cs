@@ -60,8 +60,8 @@ public sealed class KakeiboApiTestFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:DefaultConnection", _testConnectionString);
-        builder.UseSetting("Cognito:Region", "test-region");
-        builder.UseSetting("Cognito:UserPoolId", "test-user-pool");
+        builder.UseSetting("Cognito:Region", "us-east-1");
+        builder.UseSetting("Cognito:UserPoolId", "us-east-1_testpool");
         builder.UseSetting("Cognito:AppClientId", TestTokenFactory.AppClientId);
 
         builder.ConfigureServices(services =>

@@ -62,7 +62,7 @@ public class AuthGuardTests(KakeiboApiTestFactory factory) : EntriesApiTestBase(
     public async Task Wrong_issuer_token_returns_401()
     {
         var token = Factory.Tokens.CreateAccessToken(
-            issuer: "https://cognito-idp.test-region.amazonaws.com/other-user-pool").Value;
+            issuer: "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_otherpool").Value;
 
         using var client = Factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
@@ -134,5 +134,12 @@ public class AuthGuardTests(KakeiboApiTestFactory factory) : EntriesApiTestBase(
         var json = await JsonBodyAsync(response);
         Assert.Equal(JsonValueKind.Array, json.ValueKind);
         Assert.Empty(json.EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Signup_endpoints_do_not_exist_even_for_an_authenticated_user()
+    {
+        Assert.Equal(HttpStatusCode.NotFound, (await Client.PostAsync("/api/signup", Json(new { }))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await Client.PostAsync("/api/auth/signup", Json(new { }))).StatusCode);
     }
 }

@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -75,7 +74,6 @@ export interface AuthProviderProps {
 
 export function AuthProvider({ config, children }: AuthProviderProps) {
   const [state, setState] = useState<AuthState>({ name: 'checking' })
-  const navigating = useRef(false)
 
   useEffect(() => {
     configureCognito(config)
@@ -147,9 +145,6 @@ export function AuthProvider({ config, children }: AuthProviderProps) {
     () => ({ state, signIn, completeNewPassword, signOut }),
     [state, signIn, completeNewPassword, signOut],
   )
-
-  // navigating参照はlint抑制用（将来のセッション管理で使用）
-  void navigating
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

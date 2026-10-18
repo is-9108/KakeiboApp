@@ -19,10 +19,10 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://0.0.0.0:8080
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-kakeibo};Username=${POSTGRES_USER:-kakeibo};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD を .env に設定してください}"
-      # 値を空にするとAPIが起動しない（認証は必須）。実Cognitoで確認するときは .env に実値を設定する
-      Cognito__Region: ${COGNITO_REGION:-local-test}
-      Cognito__UserPoolId: ${COGNITO_USER_POOL_ID:-local-test-pool}
-      Cognito__AppClientId: ${COGNITO_APP_CLIENT_ID:-local-test-client}
+      # 空のときはテスト用プレースホルダで起動する（実Cognitoではログイン不可）
+      Cognito__Region: ${COGNITO_REGION:-us-east-1}
+      Cognito__UserPoolId: ${COGNITO_USER_POOL_ID:-us-east-1_localtestpool}
+      Cognito__AppClientId: ${COGNITO_APP_CLIENT_ID:-localtestclient}
     ports:
       - "8080:8080"
     depends_on:
@@ -37,9 +37,9 @@ services:
       - "5173:5173"
     environment:
       # ブラウザに渡るCognito設定。実Cognitoで確認するときは .env に実値を設定する
-      VITE_COGNITO_REGION: ${COGNITO_REGION:-local-test}
-      VITE_COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-local-test-pool}
-      VITE_COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-local-test-client}
+      VITE_COGNITO_REGION: ${COGNITO_REGION:-us-east-1}
+      VITE_COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-us-east-1_localtestpool}
+      VITE_COGNITO_APP_CLIENT_ID: ${COGNITO_APP_CLIENT_ID:-localtestclient}
     volumes:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules

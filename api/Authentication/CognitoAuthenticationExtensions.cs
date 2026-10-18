@@ -21,7 +21,9 @@ public static class CognitoAuthenticationExtensions
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
-                options.MetadataAddress = $"{cognito.Issuer}/.well-known/jwks.json";
+                // MetadataAddress はJWKSそのものではなくOIDC discovery文書を指す。
+                // Retrieverが文書内のjwks_uriから署名鍵を取得する。
+                options.MetadataAddress = $"{cognito.Issuer}/.well-known/openid-configuration";
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,

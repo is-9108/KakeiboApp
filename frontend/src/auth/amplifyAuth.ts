@@ -5,6 +5,7 @@ import {
   signIn as amplifySignIn,
   signOut as amplifySignOut,
 } from 'aws-amplify/auth'
+import { cognitoUserPoolsTokenProvider } from 'aws-amplify/auth/cognito'
 
 /** Cognitoの接続設定。Viteの VITE_* 環境変数から読む。 */
 export interface CognitoConfig {
@@ -24,6 +25,9 @@ export interface AuthTokens {
 
 /** implementフェーズで決定した設計：Amplify SDKの境界をこの関数群でだけ触る */
 export function configureCognito(config: CognitoConfig): void {
+  if (!config.userPoolId.startsWith(`${config.region}_`)) {
+    throw new Error('CognitoのUser Pool IDとRegionが一致しません。')
+  }
   Amplify.configure({
     Auth: {
       Cognito: {
@@ -32,6 +36,28 @@ export function configureCognito(config: CognitoConfig): void {
       },
     },
   })
+  // セッションは現在のタブに限定する。パスワードは保存しない。
+  cognitoUserPoolsTokenProvider.setKeyValueStorage({
+    async setItem(key, value) {
+      sessionStorage.setItem(key, value)
+    },
+    async getItem(key) {
+      return sessionStorage.getItem(key)
+    },
+    async removeItem(key) {
+      sessionStorage.removeItem(key)
+    },
+    async clear() {
+      sessionStorage.clear()
+    },
+  })
+}
+
+/** Cognitoがrefresh tokenを拒否したエラーだけをセッション失効として扱う。 */
+export function isSessionExpiredError(error: unknown): boolean {
+  const name = (error as { name?: string } | null)?.name ?? ''
+  return ['NotAuthorizedException', 'InvalidGrantException', 'RefreshTokenExpiredException', 'TokenRefreshException']
+    .includes(name)
 }
 
 /**

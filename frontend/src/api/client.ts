@@ -1,4 +1,4 @@
-import { fetchSession } from '../auth/amplifyAuth'
+import { fetchSession, isSessionExpiredError } from '../auth/amplifyAuth'
 
 /** API呼び出し共通のエラー。 */
 export class ApiError extends Error {
@@ -41,7 +41,16 @@ function assertTokenAvailable(accessToken?: string): string {
  * 401はセッション失効として扱い、AccessTokenRefreshErrorを投げる。
  */
 export async function fetchEntries(month: string): Promise<ApiEntry[]> {
-  const session = await fetchSession()
+  let session
+  try {
+    session = await fetchSession()
+  } catch (error) {
+    if (isSessionExpiredError(error)) {
+      throw new AccessTokenRefreshError()
+    }
+    // NetworkError等の一時的な障害は認証失効として扱わない。
+    throw error
+  }
   const accessToken = assertTokenAvailable(session.tokens?.accessToken)
 
   const response = await fetch(`/api/entries?month=${encodeURIComponent(month)}`, {

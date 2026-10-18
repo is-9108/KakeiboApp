@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using System.Text.RegularExpressions;
 
 namespace Kakeibo.Api.Authentication;
 
@@ -26,12 +27,15 @@ public static class CognitoConfigurationReader
         var appClientId = section["AppClientId"];
 
         if (string.IsNullOrWhiteSpace(region) ||
+            !Regex.IsMatch(region, @"^[a-z]{2}(?:-[a-z]+)+-[0-9]$", RegexOptions.CultureInvariant) ||
             string.IsNullOrWhiteSpace(userPoolId) ||
-            string.IsNullOrWhiteSpace(appClientId))
+            !Regex.IsMatch(userPoolId, $"^{Regex.Escape(region)}_[A-Za-z0-9]+$", RegexOptions.CultureInvariant) ||
+            string.IsNullOrWhiteSpace(appClientId) ||
+            !Regex.IsMatch(appClientId, @"^[A-Za-z0-9]+$", RegexOptions.CultureInvariant))
         {
             throw new InvalidOperationException(
-                $"{sectionName}:Region / {sectionName}:UserPoolId / {sectionName}:AppClientId を設定してください。" +
-                "いずれかが欠けたまま認証を無効化して起動することはありません。");
+                $"{sectionName}:Region / UserPoolId / AppClientId が不正です。" +
+                "RegionはAWSリージョン形式、UserPoolIdは<Region>_<ID>形式、AppClientIdは英数字で設定してください。");
         }
 
         return new CognitoConfiguration(region, userPoolId, appClientId);

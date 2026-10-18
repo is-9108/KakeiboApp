@@ -10,10 +10,10 @@ namespace Kakeibo.Api.Tests.Infrastructure;
 public sealed class TestTokenFactory
 {
     /// <summary>このファクトリが既定で使う発行者（テスト用User Poolの発行者URL）。</summary>
-    public const string Issuer = "https://cognito-idp.test-region.amazonaws.com/test-user-pool";
+    public const string Issuer = "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_testpool";
 
     /// <summary>このファクトリが既定で使うApp Client ID。</summary>
-    public const string AppClientId = "test-app-client";
+    public const string AppClientId = "testappclient";
 
     /// <summary>既定のtoken_use値。</summary>
     public const string DefaultTokenUse = "access";

@@ -1,6 +1,7 @@
 /** amplifyAuthモジュールの依存をモックする */
-const { Amplify, fetchAuthSession, amplifySignIn, confirmSignIn, amplifySignOut } = vi.hoisted(() => ({
+const { Amplify, tokenProvider, fetchAuthSession, amplifySignIn, confirmSignIn, amplifySignOut } = vi.hoisted(() => ({
   Amplify: { configure: vi.fn() },
+  tokenProvider: { setKeyValueStorage: vi.fn() },
   fetchAuthSession: vi.fn(),
   amplifySignIn: vi.fn(),
   confirmSignIn: vi.fn(),
@@ -14,6 +15,7 @@ vi.mock('aws-amplify/auth', () => ({
   confirmSignIn,
   signOut: amplifySignOut,
 }))
+vi.mock('aws-amplify/auth/cognito', () => ({ cognitoUserPoolsTokenProvider: tokenProvider }))
 
 // amplifyAuthはaws-amplify/authの関数をラップするだけなので実物を使う
 import { configureCognito, fetchSession, signIn, completeNewPassword, signOutUser, SignInStep } from './amplifyAuth'
@@ -30,13 +32,26 @@ describe('amplifyAuth', () => {
   })
 
   it('configureCognitoでAmplifyに設定を渡す', () => {
-    configureCognito({ region: 'ap-northeast-1', userPoolId: 'pool', userPoolClientId: 'client' })
+    configureCognito({ region: 'us-east-1', userPoolId: 'us-east-1_pool123', userPoolClientId: 'client123' })
 
     expect(Amplify.configure).toHaveBeenCalledWith({
       Auth: {
-        Cognito: { userPoolId: 'pool', userPoolClientId: 'client' },
+        Cognito: { userPoolId: 'us-east-1_pool123', userPoolClientId: 'client123' },
       },
     })
+    expect(tokenProvider.setKeyValueStorage).toHaveBeenCalledWith(expect.objectContaining({
+      setItem: expect.any(Function),
+      getItem: expect.any(Function),
+      removeItem: expect.any(Function),
+    }))
+  })
+
+  it('User Pool IDとRegionが一致しない設定を拒否する', () => {
+    expect(() => configureCognito({
+      region: 'us-east-1',
+      userPoolId: 'eu-west-1_pool123',
+      userPoolClientId: 'client123',
+    })).toThrow('CognitoのUser Pool IDとRegionが一致しません。')
   })
 
   it('fetchSessionはログイン済みならaccessTokenを返す', async () => {

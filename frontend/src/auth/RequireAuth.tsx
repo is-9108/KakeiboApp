@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
-import LoginPage from '../pages/LoginPage'
 import ChangePasswordPage from '../pages/ChangePasswordPage'
 
 /**
@@ -11,6 +11,7 @@ import ChangePasswordPage from '../pages/ChangePasswordPage'
  */
 export default function RequireAuth({ children }: { children: ReactNode }) {
   const auth = useAuth()
+  const location = useLocation()
 
   if (auth.state.name === 'checking') {
     return <p data-testid="checking-indicator">認証状態を確認しています…</p>
@@ -21,5 +22,5 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
   if (auth.state.name === 'authenticated') {
     return <>{children}</>
   }
-  return <LoginPage />
+  return <Navigate to="/login" replace state={{ from: location }} />
 }

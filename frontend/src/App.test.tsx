@@ -1,13 +1,16 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { AppRoutes } from './App'
 import { AuthProvider, type CognitoConfig } from './auth/AuthContext'
 import { fetchSession, signIn, completeNewPassword, signOutUser } from './auth/amplifyAuth'
-import { fetchEntries } from './api/client'
-import { AuthFlowError } from './auth/AuthContext'
+import { ApiError, fetchEntries } from './api/client'
 
 /** テスト用のCognito設定（AuthProviderのconfigとして渡すがconfigureCognitoはモック済み） */
-const testConfig: CognitoConfig = { region: 'ap-northeast-1', userPoolId: 'pool', userPoolClientId: 'client' }
+const testConfig: CognitoConfig = {
+  region: 'us-east-1',
+  userPoolId: 'us-east-1_testpool',
+  userPoolClientId: 'client123',
+}
 
 vi.mock('./auth/amplifyAuth', () => ({
   configureCognito: vi.fn(),
@@ -15,6 +18,9 @@ vi.mock('./auth/amplifyAuth', () => ({
   signIn: vi.fn(),
   completeNewPassword: vi.fn(),
   signOutUser: vi.fn(),
+  isSessionExpiredError: (error: unknown) =>
+    ['NotAuthorizedException', 'InvalidGrantException', 'RefreshTokenExpiredException', 'TokenRefreshException']
+      .includes((error as { name?: string } | null)?.name ?? ''),
   SignInStep: { confirmSignUpNewPasswordRequired: 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED' },
 }))
 
@@ -56,9 +62,15 @@ function renderApp(path = '/') {
     <AuthProvider config={testConfig}>
       <MemoryRouter initialEntries={[path]}>
         <AppRoutes />
+        <LocationProbe />
       </MemoryRouter>
     </AuthProvider>,
   )
+}
+
+function LocationProbe() {
+  const location = useLocation()
+  return <output data-testid="current-path">{location.pathname}</output>
 }
 
 async function fillAndSubmitLoginForm(username: string, password: string) {
@@ -82,6 +94,7 @@ describe('App（認証ガード）', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'ログイン' })).toBeInTheDocument()
     })
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/login')
     expect(screen.queryByText('仮ページ')).not.toBeInTheDocument()
   })
 
@@ -91,6 +104,7 @@ describe('App（認証ガード）', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'ログイン' })).toBeInTheDocument()
     })
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/login')
     expect(screen.queryByText('仮ページ')).not.toBeInTheDocument()
   })
 
@@ -132,9 +146,7 @@ describe('App（認証ガード）', () => {
   })
 
   it('ログイン失敗するとエラーを表示しログイン画面のまま（T13）', async () => {
-    vi.mocked(signIn).mockRejectedValue(
-      new AuthFlowError('メールアドレスまたはパスワードが正しくありません。', 'NotAuthorizedException'),
-    )
+    vi.mocked(signIn).mockRejectedValue(Object.assign(new Error('bad credentials'), { name: 'NotAuthorizedException' }))
 
     renderApp()
 
@@ -161,6 +173,21 @@ describe('App（認証ガード）', () => {
       expect(screen.getByText('メールアドレスとパスワードを入力してください。')).toBeInTheDocument()
     })
     expect(vi.mocked(signIn)).not.toHaveBeenCalled()
+  })
+
+  it('送信中の連続操作でログイン要求を重複させない（T13）', async () => {
+    let resolveSignIn: ((value: unknown) => void) | undefined
+    vi.mocked(signIn).mockImplementation(() => new Promise((resolve) => { resolveSignIn = resolve }) as never)
+    renderApp('/login')
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'ログイン' })).toBeInTheDocument())
+    fireEvent.change(screen.getByLabelText('メールアドレス'), { target: { value: 'user@example.com' } })
+    fireEvent.change(screen.getByLabelText('パスワード'), { target: { value: 'Passw0rd!' } })
+    const button = screen.getByRole('button', { name: 'ログイン' })
+    fireEvent.click(button)
+    fireEvent.click(button)
+    expect(vi.mocked(signIn)).toHaveBeenCalledTimes(1)
+    resolveSignIn?.({ isSignedIn: true, nextStep: { signInStep: 'DONE' } })
   })
 
   it('初回パスワード変更を経由してログインできる（T14）', async () => {
@@ -194,7 +221,7 @@ describe('App（認証ガード）', () => {
       nextStep: { signInStep: 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED' },
     } as never)
     vi.mocked(completeNewPassword).mockRejectedValue(
-      new AuthFlowError('パスワードはポリシーに一致させてください。', 'InvalidPasswordException'),
+      Object.assign(new Error('password does not meet policy'), { name: 'InvalidPasswordException' }),
     )
 
     renderApp()
@@ -216,6 +243,19 @@ describe('App（認証ガード）', () => {
     expect(screen.getByRole('heading', { name: 'パスワード変更' })).toBeInTheDocument()
   })
 
+  it('未対応の初回認証チャレンジでは保護画面へ進まない（T15）', async () => {
+    vi.mocked(signIn).mockResolvedValue({
+      isSignedIn: false,
+      nextStep: { signInStep: 'CONFIRM_SIGN_IN_WITH_TOTP_CODE' },
+    } as never)
+    renderApp('/login')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'ログイン' })).toBeInTheDocument())
+    await fillAndSubmitLoginForm('user@example.com', 'Passw0rd!')
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('未対応の認証ステップ'))
+    expect(screen.queryByRole('heading', { name: '仮ページ' })).not.toBeInTheDocument()
+  })
+
   it('ログアウトするとログイン画面に戻る（T19）', async () => {
     setupMocks({ session: { tokens: { accessToken: 'valid-token' } } })
     vi.mocked(signOutUser).mockResolvedValue(undefined)
@@ -230,6 +270,7 @@ describe('App（認証ガード）', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'ログイン' })).toBeInTheDocument()
     })
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/login')
   })
 
   it('ログアウト後の保護URLへの再アクセスでもログイン画面のまま（T19）', async () => {
@@ -256,7 +297,7 @@ describe('App（認証ガード）', () => {
 
   it('APIが500でもエラーを表示しログイン画面へ戻らない（T20）', async () => {
     setupMocks({ session: { tokens: { accessToken: 'valid-token' } } })
-    vi.mocked(fetchEntries).mockRejectedValue(new Error('APIの呼び出しに失敗しました。'))
+    vi.mocked(fetchEntries).mockRejectedValue(new ApiError('APIの呼び出しに失敗しました。', 500))
 
     renderApp()
 
@@ -301,8 +342,9 @@ describe('AppとAPI連携', () => {
 
   it('APIの401でセッションを破棄しログインへ戻る（T18）', async () => {
     setupMocks({ session: { tokens: { accessToken: 'expired-token' } } })
-    const { AccessTokenRefreshError } = await import('./api/client')
-    vi.mocked(fetchEntries).mockRejectedValue(new AccessTokenRefreshError())
+    const actualApi = await vi.importActual<typeof import('./api/client')>('./api/client')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 401, ok: false }))
+    vi.mocked(fetchEntries).mockImplementation(actualApi.fetchEntries)
     vi.mocked(signOutUser).mockResolvedValue(undefined)
 
     renderApp()
@@ -310,6 +352,21 @@ describe('AppとAPI連携', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'ログイン' })).toBeInTheDocument()
     })
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/login')
+    expect(vi.mocked(signOutUser)).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('refresh token失効時はセッションを破棄してログインへ戻る（T18）', async () => {
+    vi.mocked(fetchSession)
+      .mockResolvedValueOnce({ tokens: { accessToken: 'valid-token' } } as never)
+      .mockRejectedValueOnce(Object.assign(new Error('refresh rejected'), { name: 'NotAuthorizedException' }))
+    const actualApi = await vi.importActual<typeof import('./api/client')>('./api/client')
+    vi.mocked(fetchEntries).mockImplementation(actualApi.fetchEntries)
+    vi.mocked(signOutUser).mockResolvedValue(undefined)
+
+    renderApp()
+    await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/login'))
     expect(vi.mocked(signOutUser)).toHaveBeenCalled()
   })
 })
