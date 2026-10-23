@@ -1,0 +1,63 @@
+.entry-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.entry-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.entry-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.entry-form__field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.entry-form__field input,
+.entry-form__field select,
+.entry-form__field textarea {
+  width: 100%;
+  max-width: 100%;
+  padding: 8px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.entry-form__field textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.entry-form__unit,
+.entry-form__hint {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.entry-form__error {
+  margin: 0;
+  color: #b3261e;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.entry-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.entry-form__actions button {
+  padding: 8px 20px;
+  font-size: 1rem;
+}
