@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "commands": {
+    "test": "docker compose run --rm api dotnet test Kakeibo.slnx && docker compose run --rm --no-deps frontend sh -c 'npm ci && npm test'",
+    "lint": "docker compose run --rm --no-deps api dotnet format Kakeibo.slnx --verify-no-changes && docker compose run --rm --no-deps frontend sh -c 'npm ci && npx tsc --noEmit'"
+  },
+  "git": {
+    "baseBranch": "main"
+  }
+}
