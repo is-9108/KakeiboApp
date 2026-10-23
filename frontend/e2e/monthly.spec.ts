@@ -224,6 +224,22 @@ test.describe('375pxの画面 (T26)', () => {
     await expect(newRow).toContainText('600円')
     await expect(page.getByRole('region', { name: '月次集計' })).toContainText('5,600円')
 
+    // 編集時の入力エラーとAPIのint上限値でも操作・表示に横はみ出しがない
+    await newRow.getByRole('button', { name: '編集' }).click()
+    await page.getByLabel('金額').fill('1.5')
+    await page.getByRole('button', { name: '保存' }).click()
+    await expect(page.getByText('金額は1以上の整数（円）で入力してください。')).toBeVisible()
+    await expect(page.getByLabel('金額')).toHaveValue('1.5')
+    await expectNoHorizontalScroll(page)
+    await page.getByLabel('金額').fill('2147483647')
+    await page.getByRole('button', { name: '保存' }).click()
+    await expect(newRow).toContainText('2,147,483,647円')
+    await expectNoHorizontalScroll(page)
+    await newRow.getByRole('button', { name: '編集' }).click()
+    await page.getByLabel('金額').fill('600')
+    await page.getByRole('button', { name: '保存' }).click()
+    await expect(newRow).toContainText('600円')
+
     // 削除：確認ダイアログのキャンセルでは削除されない（Playwrightは既定でキャンセル扱い）
     await newRow.getByRole('button', { name: '削除' }).click()
     await expect(newRow).toBeVisible()
@@ -263,6 +279,7 @@ test.describe('1280pxの画面 (T27)', () => {
     await page.getByRole('button', { name: '登録' }).click()
     const newRow = entryRow(page, '副収入')
     await expect(newRow).toContainText('10,000円')
+    await expect(page.getByRole('region', { name: '月次集計' })).toContainText('260,000円')
 
     // 編集
     await newRow.getByRole('button', { name: '編集' }).click()
@@ -270,6 +287,7 @@ test.describe('1280pxの画面 (T27)', () => {
     await page.getByLabel('金額').fill('12000')
     await page.getByRole('button', { name: '保存' }).click()
     await expect(newRow).toContainText('12,000円')
+    await expect(page.getByRole('region', { name: '月次集計' })).toContainText('262,000円')
 
     // 削除（キャンセル → 承認）
     await newRow.getByRole('button', { name: '削除' }).click()

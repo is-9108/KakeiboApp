@@ -51,6 +51,12 @@ describe('fetchEntries', () => {
     await expect(fetchEntries('2031-01')).rejects.toBeInstanceOf(AccessTokenRefreshError)
   })
 
+  it('アクセストークンがない場合はfetchを呼ばずセッション失効エラーになる (T20)', async () => {
+    vi.mocked(fetchSession).mockResolvedValue({ tokens: null })
+    await expect(fetchEntries('2031-01')).rejects.toBeInstanceOf(AccessTokenRefreshError)
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('turns refresh-token rejection into an authentication-expired error', async () => {
     vi.mocked(fetchSession).mockRejectedValue(
       Object.assign(new Error('refresh rejected'), { name: 'NotAuthorizedException' }),
@@ -244,9 +250,16 @@ describe('updateEntry (T18)', () => {
       url: '/api/entries/3',
       init: expect.objectContaining({
         method: 'PUT',
+        headers: { Authorization: 'Bearer access-token', 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       }),
     })
+  })
+
+  it('401はセッション失効エラーになる (T20)', async () => {
+    await stubAuthenticatedApi()
+    vi.mocked(fetch).mockResolvedValue({ status: 401, ok: false } as Response)
+    await expect(updateEntry(3, input)).rejects.toBeInstanceOf(AccessTokenRefreshError)
   })
 
   it('404は日本語メッセージのApiErrorになる (T22)', async () => {
@@ -279,9 +292,18 @@ describe('deleteEntry (T18)', () => {
     await expect(deleteEntry(7)).resolves.toBeUndefined()
     expect(lastFetchCall()).toMatchObject({
       url: '/api/entries/7',
-      init: expect.objectContaining({ method: 'DELETE' }),
+      init: expect.objectContaining({
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer access-token' },
+      }),
     })
     expect(json).not.toHaveBeenCalled()
+  })
+
+  it('401はセッション失効エラーになる (T20)', async () => {
+    await stubAuthenticatedApi()
+    vi.mocked(fetch).mockResolvedValue({ status: 401, ok: false } as Response)
+    await expect(deleteEntry(7)).rejects.toBeInstanceOf(AccessTokenRefreshError)
   })
 
   it('404は日本語メッセージのApiErrorになる (T22)', async () => {

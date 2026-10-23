@@ -101,11 +101,8 @@ async function authedFetch(
   let response: Response
   try {
     response = await fetch(path, requestInit)
-  } catch (error) {
-    if (error instanceof AccessTokenRefreshError) {
-      throw error
-    }
-    // 通信断など本科生の拒否は認証失効へ変換せず、日本語の通信エラーにする。
+  } catch {
+    // 通信断などの通信エラーは認証失効へ変換せず、日本語の通信エラーにする。
     throw new ApiError(TRANSPORT_ERROR_MESSAGE, 0)
   }
 

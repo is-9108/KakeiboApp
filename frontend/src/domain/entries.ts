@@ -72,10 +72,13 @@ export function isValidDateString(value: string): boolean {
   const year = Number(parsed[1])
   const month = Number(parsed[2])
   const day = Number(parsed[3])
-  const utc = new Date(Date.UTC(year, month - 1, day))
-  return (
-    utc.getUTCFullYear() === year && utc.getUTCMonth() === month - 1 && utc.getUTCDate() === day
-  )
+  if (year < 1 || month < 1 || month > 12 || day < 1) {
+    return false
+  }
+
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  return day <= daysInMonth[month - 1]!
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { ApiEntry } from '../api/client'
+import { formatYen } from '../domain/format'
 import './EntryList.css'
 
 interface EntryListProps {
@@ -7,11 +8,6 @@ interface EntryListProps {
   onDelete: (entry: ApiEntry) => void
   /** 更新処理中は編集・削除を受け付けない。 */
   disabled?: boolean
-}
-
-/** 桁区切り付きの円表記。 */
-function formatYen(amount: number): string {
-  return `${amount.toLocaleString('ja-JP')}円`
 }
 
 /**

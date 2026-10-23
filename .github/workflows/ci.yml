@@ -28,6 +28,24 @@ jobs:
       - name: フロントエンドのビルド確認
         run: docker compose run --rm --no-deps frontend sh -c "npm run build"
 
+      - name: 疎通確認（smoke test）
+        run: |
+          docker compose up -d
+          code="000"
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health || true)
+            if [ "$code" = "200" ]; then break; fi
+            sleep 3
+          done
+          echo "/health -> HTTP $code"
+          docker compose ps
+          if [ "$code" != "200" ]; then
+            docker compose logs api db
+            exit 1
+          fi
+          curl -s http://localhost:8080/health
+          echo
+
   browser-test:
     runs-on: ubuntu-latest
     steps:
@@ -52,21 +70,3 @@ jobs:
       - name: ブラウザテストを実行する
         run: npm run test:e2e
         working-directory: frontend
-
-      - name: 疎通確認（smoke test）
-        run: |
-          docker compose up -d
-          code="000"
-          for i in $(seq 1 30); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health || true)
-            if [ "$code" = "200" ]; then break; fi
-            sleep 3
-          done
-          echo "/health -> HTTP $code"
-          docker compose ps
-          if [ "$code" != "200" ]; then
-            docker compose logs api db
-            exit 1
-          fi
-          curl -s http://localhost:8080/health
-          echo

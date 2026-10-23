@@ -60,10 +60,8 @@ export default function EntryForm({ onSubmit, initialEntry, onCancel }: EntryFor
 
   const changeType = (nextType: string) => {
     setType(nextType)
-    // 種別に対応しないカテゴリが選ばれたままにならないようにする
-    if (category !== '' && !categoryOptions(nextType).includes(category)) {
-      setCategory('')
-    }
+    // 種別変更時は、共通カテゴリを含めて選択を解除する
+    setCategory('')
   }
 
   const handleSubmit = async (event: FormEvent) => {

@@ -1,10 +1,6 @@
 import type { ApiSummary } from '../api/client'
+import { formatYen } from '../domain/format'
 import './MonthlySummary.css'
-
-/** 桁区切り付きの円表記。負数は -1,000 のように符号つきで整形する。 */
-function formatYen(amount: number): string {
-  return `${amount.toLocaleString('ja-JP')}円`
-}
 
 /** 構成比を小数第1位のパーセント表記にする。非数値は0.0%として表示する。 */
 function formatPercentage(percentage: number): string {

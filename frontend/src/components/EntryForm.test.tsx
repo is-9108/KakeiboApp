@@ -23,10 +23,6 @@ describe('EntryForm (T8〜T12・T19・T24・T28)', () => {
     return values
   }
 
-  it('単体テストデータと一致する全項目は検証を通過する (T11)', () => {
-    renderNewForm(vi.fn().mockResolvedValue(undefined))
-  })
-
   it('種別・カテゴリ・日付・金額・メモは未入力から選択できる (T8)', () => {
     renderNewForm(vi.fn())
     expect(screen.getByLabelText('日付')).toHaveValue('')
@@ -75,6 +71,25 @@ describe('EntryForm (T8〜T12・T19・T24・T28)', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['日付', '日付は必須です。'],
+    ['種別', '種別を選択してください。'],
+    ['金額', '金額を入力してください。'],
+    ['カテゴリ', 'カテゴリを選択してください。'],
+  ])('編集時に%sだけ未入力ならエラーを表示してPUT相当の送信をしない (T8)', async (field, message) => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    render(
+      <EntryForm
+        onSubmit={onSubmit}
+        initialEntry={{ id: 5, date: '2026-10-15', type: '収入', amount: 250000, category: '給与', memo: '給与' }}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(field), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
   it.each(['0', '-1', '1.5', 'abc'])('金額%sは送信せず日本語エラーを出す (T9)', async (amount) => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     renderNewForm(onSubmit)
@@ -85,6 +100,20 @@ describe('EntryForm (T8〜T12・T19・T24・T28)', () => {
     await waitFor(() => {
       expect(screen.getByText(/金額は1以上の整数|金額は1円以上/)).toBeInTheDocument()
     })
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it.each(['0', '-1', '1.5', 'abc'])('編集時の金額%sはエラーになり送信しない (T9)', async (amount) => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    render(
+      <EntryForm
+        onSubmit={onSubmit}
+        initialEntry={{ id: 5, date: '2026-10-15', type: '収入', amount: 250000, category: '給与', memo: '' }}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText('金額'), { target: { value: amount } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    expect(await screen.findByText(/金額は1以上の整数|金額は1円以上/)).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
@@ -122,6 +151,15 @@ describe('EntryForm (T8〜T12・T19・T24・T28)', () => {
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ date: '2028-02-29' })
   })
 
+  it('日付2026-11-01は表示・送信時に変換されない (T3)', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    renderNewForm(onSubmit)
+    fillForm({ 日付: '2026-11-01' })
+    fireEvent.click(screen.getByRole('button', { name: '登録' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ date: '2026-11-01' })
+  })
+
   it('種別を収入に変えると支出カテゴリが解除される (T12)', () => {
     renderNewForm(vi.fn())
     fireEvent.change(screen.getByLabelText('種別'), { target: { value: '支出' } })
@@ -133,6 +171,18 @@ describe('EntryForm (T8〜T12・T19・T24・T28)', () => {
       (screen.getByLabelText('カテゴリ') as HTMLSelectElement).options,
     ).map((o) => o.textContent)
     expect(categoryOptions).toEqual(['未選択', '給与', '副収入', 'その他'])
+  })
+
+  it('種別変更では共通カテゴリ「その他」も解除し、収入から支出へ変える場合も解除する (T12)', () => {
+    renderNewForm(vi.fn())
+    fireEvent.change(screen.getByLabelText('種別'), { target: { value: '収入' } })
+    fireEvent.change(screen.getByLabelText('カテゴリ'), { target: { value: 'その他' } })
+    fireEvent.change(screen.getByLabelText('種別'), { target: { value: '支出' } })
+    expect(screen.getByLabelText('カテゴリ')).toHaveValue('')
+
+    fireEvent.change(screen.getByLabelText('カテゴリ'), { target: { value: 'その他' } })
+    fireEvent.change(screen.getByLabelText('種別'), { target: { value: '収入' } })
+    expect(screen.getByLabelText('カテゴリ')).toHaveValue('')
   })
 
   it('種別ごとのカテゴリ選択肢はプリセットのみ (T12)', () => {
@@ -213,6 +263,20 @@ describe('EntryForm (T8〜T12・T19・T24・T28)', () => {
     })
     expect(screen.getByLabelText('金額')).toHaveValue('500')
     expect(screen.getAllByRole('alert').some((a) => a.textContent === '入力内容を確認してください。')).toBe(true)
+  })
+
+  it('未知の項目を含む400は全体エラーとして日本語で表示する (T19)', async () => {
+    const onSubmit = vi.fn().mockRejectedValue(
+      Object.assign(new Error('入力内容を確認してください。'), {
+        name: 'ApiValidationError',
+        fieldErrors: { unknownBackendField: ['backend detail'] },
+      }),
+    )
+    renderNewForm(onSubmit)
+    fillForm()
+    fireEvent.click(screen.getByRole('button', { name: '登録' }))
+    expect(await screen.findByText('入力内容を確認してください。')).toBeInTheDocument()
+    expect(screen.getByLabelText('金額')).toHaveValue('500')
   })
 
   it('500は日本語の全体エラーを表示する (T22)', async () => {

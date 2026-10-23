@@ -120,7 +120,7 @@ describe('validateEntry の種別とカテゴリ (T12)', () => {
 })
 
 describe('isValidDateString (T11)', () => {
-  it.each(['2026-10-20', '2028-02-29', '2000-02-29'])('有効な日付 %s はtrue', (date) => {
+  it.each(['2026-10-20', '2028-02-29', '2000-02-29', '0099-01-01', '0001-12-31'])('有効な日付 %s はtrue', (date) => {
     expect(isValidDateString(date)).toBe(true)
   })
 
