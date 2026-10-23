@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import EntryForm from './EntryForm'
+import EntryForm, { type EntryFormProps } from './EntryForm'
 
-function renderNewForm(onSubmit: ReturnType<typeof vi.fn>, props: Parameters<typeof EntryForm>[0] = {}) {
+function renderNewForm(onSubmit: ReturnType<typeof vi.fn>, props: Partial<EntryFormProps> = {}) {
   return render(<EntryForm onSubmit={onSubmit} {...props} />)
 }
 

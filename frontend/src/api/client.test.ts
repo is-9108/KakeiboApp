@@ -8,8 +8,8 @@ import {
   updateEntry,
   type ApiEntry,
   type ApiSummary,
-  type EntryInput,
 } from './client'
+import type { EntryInput } from '../domain/entries'
 import { fetchSession } from '../auth/amplifyAuth'
 
 vi.mock('../auth/amplifyAuth', () => ({

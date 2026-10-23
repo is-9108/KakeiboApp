@@ -17,5 +17,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // ブラウザテスト（Playwright）のspecをVitestが拾わないよう、単体テストはsrc配下に限定する
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 })

@@ -20,7 +20,7 @@ export interface EntryFormInitialEntry {
   memo: string
 }
 
-interface EntryFormProps {
+export interface EntryFormProps {
   /** 送信ハンドラ。成功時はPromiseが解決し、失敗時はエラーをthrowする。 */
   onSubmit: (input: EntryInput) => Promise<void>
   /** 編集対象。指定すると編集モードになる。 */

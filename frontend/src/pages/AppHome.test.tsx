@@ -47,12 +47,6 @@ vi.mock('../api/client', () => ({
   },
 }))
 
-const testConfig = {
-  region: 'us-east-1',
-  userPoolId: 'us-east-1_testpool',
-  userPoolClientId: 'client123',
-}
-
 function emptySummary(month = '2026-10'): ApiSummary {
   return { month, incomeTotal: 0, expenseTotal: 0, balance: 0, expenseBreakdown: [] }
 }
