@@ -76,7 +76,7 @@ describe('EntryForm (T8〜T12・T19・T24・T28)', () => {
     ['種別', '種別を選択してください。'],
     ['金額', '金額を入力してください。'],
     ['カテゴリ', 'カテゴリを選択してください。'],
-  ])('編集時に%sだけ未入力ならエラーを表示してPUT相当の送信をしない (T8)', async (field, message) => {
+  ])('編集時に%sを未入力にするとエラーを表示してPUT相当の送信をしない (T8)', async (field, message) => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     render(
       <EntryForm
@@ -85,6 +85,10 @@ describe('EntryForm (T8〜T12・T19・T24・T28)', () => {
       />,
     )
     fireEvent.change(screen.getByLabelText(field), { target: { value: '' } })
+    if (field === '種別') {
+      // 種別解除時はカテゴリも連動解除される。種別未選択中はカテゴリエラーを出さない。
+      expect(screen.getByLabelText('カテゴリ')).toHaveValue('')
+    }
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
     expect(await screen.findByText(message)).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
@@ -155,6 +159,7 @@ describe('EntryForm (T8〜T12・T19・T24・T28)', () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     renderNewForm(onSubmit)
     fillForm({ 日付: '2026-11-01' })
+    expect(screen.getByLabelText('日付')).toHaveValue('2026-11-01')
     fireEvent.click(screen.getByRole('button', { name: '登録' }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ date: '2026-11-01' })

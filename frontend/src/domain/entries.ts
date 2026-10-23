@@ -61,7 +61,7 @@ export const MAX_AMOUNT = 2147483647
 
 /**
  * YYYY-MM-DD形式を厳密に検証する。うるう年を含む実在日のみtrue。
- * UTCの内部値だけで計算するため、実行環境のタイムゾーンに依存しない。
+ * うるう年則と月ごとの日数を整数計算で照合するため、実行環境のタイムゾーンに依存しない。
  */
 export function isValidDateString(value: string): boolean {
   const parsed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)

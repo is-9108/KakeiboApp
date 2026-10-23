@@ -334,6 +334,8 @@ describe('読み込みと失敗 (T22)', () => {
     renderScreen()
 
     await waitFor(() => expect(screen.getByText('読み込み中…')).toBeInTheDocument())
+    expect(screen.getByRole('heading', { name: '家計簿 月次画面' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'ログアウト' })).toBeInTheDocument()
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
     resolveEntries(pending, [])
   })
@@ -367,6 +369,24 @@ describe('読み込みと失敗 (T22)', () => {
     api.summaryError = null
     fireEvent.click(screen.getByRole('button', { name: '再試行' }))
     await waitFor(() => expect(screen.getByRole('region', { name: '月次集計' })).toBeInTheDocument())
+  })
+
+  it.each(['一覧', '集計'])('初期の%s取得が通信失敗なら片側を表示せず、再試行で回復する (T22)', async (failedPart) => {
+    const transportError = new ApiError('APIの呼び出しに失敗しました。通信状態を確認してください。', 0)
+    if (failedPart === '一覧') api.entriesError = transportError
+    else api.summaryError = transportError
+    setupApi()
+    renderScreen()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(transportError.message)
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '月次集計' })).not.toBeInTheDocument()
+
+    api.entriesError = null
+    api.summaryError = null
+    fireEvent.click(screen.getByRole('button', { name: '再試行' }))
+    expect(await screen.findByRole('region', { name: '月次集計' })).toBeInTheDocument()
+    expect(screen.getByText('この月に登録されている収支はありません。')).toBeInTheDocument()
   })
 
   it.each([
@@ -502,6 +522,7 @@ describe('連続月切替の競合 (T23・T24)', () => {
     const original: ApiEntry = { id: 25, date: '2026-10-10', type: '支出', amount: 100, category: '食費', memo: '10月データ' }
     const updated: ApiEntry = { ...original, amount: 200 }
     const delayedRefresh = deferred<ApiEntry[]>()
+    const delayedSummary = deferred<ApiSummary>()
     setupMonthSwitchMock()
     vi.mocked(fetchEntries).mockImplementation((month) => {
       if (month === '2026-10') return Promise.resolve([original])
@@ -510,7 +531,16 @@ describe('連続月切替の競合 (T23・T24)', () => {
       ])
       return Promise.resolve([])
     })
-    vi.mocked(fetchSummary).mockImplementation((month) => Promise.resolve(emptySummary(month)))
+    vi.mocked(fetchSummary).mockImplementation((month) => {
+      if (month === '2026-10') return Promise.resolve({
+        month, incomeTotal: 0, expenseTotal: 100, balance: -100,
+        expenseBreakdown: [{ category: '食費', amount: 100, percentage: 100 }],
+      })
+      if (month === '2026-11') return Promise.resolve({
+        month, incomeTotal: 300, expenseTotal: 0, balance: 300, expenseBreakdown: [],
+      })
+      return Promise.resolve(emptySummary(month))
+    })
     vi.mocked(updateEntry).mockResolvedValue(updated)
     renderScreen()
 
@@ -524,17 +554,41 @@ describe('連続月切替の競合 (T23・T24)', () => {
       ])
       return Promise.resolve([])
     })
+    let octoberSummaryCalls = 0
+    vi.mocked(fetchSummary).mockImplementation((month) => {
+      if (month === '2026-10') {
+        octoberSummaryCalls += 1
+        return octoberSummaryCalls === 1
+          ? Promise.resolve({
+            month, incomeTotal: 0, expenseTotal: 100, balance: -100,
+            expenseBreakdown: [{ category: '食費', amount: 100, percentage: 100 }],
+          })
+          : delayedSummary.promise
+      }
+      if (month === '2026-11') return Promise.resolve({
+        month, incomeTotal: 300, expenseTotal: 0, balance: 300, expenseBreakdown: [],
+      })
+      return Promise.resolve(emptySummary(month))
+    })
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
     await waitFor(() => expect(fetchEntries).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(fetchSummary).toHaveBeenCalledTimes(2))
     fireEvent.click(screen.getByRole('button', { name: '次月' }))
     await waitFor(() => expect(screen.getByText('11月データ')).toBeInTheDocument())
 
     await act(async () => {
       delayedRefresh.resolve([updated])
+      delayedSummary.resolve({
+        month: '2026-10', incomeTotal: 0, expenseTotal: 200, balance: -200,
+        expenseBreakdown: [{ category: '食費', amount: 200, percentage: 100 }],
+      })
     })
     expect(screen.getByText('11月データ')).toBeInTheDocument()
     expect(screen.queryByText('10月データ')).not.toBeInTheDocument()
     expect(screen.getByText('2026年11月')).toBeInTheDocument()
+    const summary = screen.getByRole('region', { name: '月次集計' })
+    expect(within(summary).getAllByText('300円')).toHaveLength(2)
+    expect(within(summary).queryByText('200円')).not.toBeInTheDocument()
   })
 })
 
@@ -650,6 +704,7 @@ describe('登録 (T13・T15・T25)', () => {
 
     // 登録は成功済み。再取得失敗は登録と区別して案内する
     const notice = await screen.findByRole('alert')
+    // T28: 保存後の再取得失敗も日本語で、保存済み状態と区別できる案内にする。
     expect(notice).toHaveTextContent('収支を登録しました。')
     expect(notice).toHaveTextContent('再取得に失敗しました。')
     // 再読み込みで回復する。登録APIは再送しない
@@ -684,6 +739,7 @@ describe('登録 (T13・T15・T25)', () => {
     const row = await screen.findByRole('listitem', { name: /2026-10-10/ })
     fireEvent.click(within(row).getByRole('button', { name: '削除' }))
     const notice = await screen.findByRole('alert')
+    // T28: 削除済みであることと再取得エラーを日本語で案内する。
     expect(notice).toHaveTextContent('収支を削除しました。')
     expect(notice).toHaveTextContent('再取得に失敗しました。')
     fireEvent.click(screen.getByRole('button', { name: '再読み込み' }))
@@ -866,7 +922,7 @@ describe('削除 (T16・T17)', () => {
     const summaryCallCount = vi.mocked(fetchSummary).mock.calls.length
     fireEvent.click(within(row).getByRole('button', { name: '削除' }))
 
-    // 日本語の確認ダイアログが表示され、キャンセルでは削除しない
+    // T28: 日本語の確認ダイアログが表示され、キャンセルでは削除しない。
     expect(confirmSpy).toHaveBeenCalledWith('この収支を削除しますか？よろしければ削除を実行します。')
     expect(deleteEntry).not.toHaveBeenCalled()
     expect(fetchEntries).toHaveBeenCalledTimes(entryCallCount)
