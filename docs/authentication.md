@@ -7,7 +7,7 @@
 - APIはCognito発行の**アクセストークン**（JWT）を検証する。対象は`/api/*`の全エンドポイント。`GET /health`のみ匿名可。
 - 検証内容：署名（User PoolのJWKS公開鍵）・`iss`（発行者）・`exp`（期限切れ、ClockSkew=0）・`token_use=access`・`client_id`（App Client一致）。IDトークン・別User Poolのトークンは401。
 - フロントエンドはAWS Amplify Auth（aws-amplify v6）でCognitoと通信する。**サインアップ導線は存在しない**（Cognito側でも無効化する）。
-- 未ログインでどのURLを開いてもログイン画面を表示する。ログイン後は仮ページ（月次画面の代わり）。初回ログイン時はCognitoの`CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED`チャレンジでパスワード変更画面を出す。
+- 未ログインでどのURLを開いてもログイン画面を表示する。ログイン後は月次画面（月切替・一覧・集計・登録／編集／削除）。初回ログイン時はCognitoの`CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED`チャレンジでパスワード変更画面を出す。
 
 ## Cognito側の初期設定（管理者が手動で行う）
 
@@ -59,7 +59,7 @@ COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxxxxx
 docker compose up -d
 # ブラウザで http://localhost:5173 を開く
 # 未ログイン → ログイン画面
-# 管理者作成ユーザーでログイン → 仮ページ（取得した収支一覧または「登録されている収支はありません。」）
+# 管理者作成ユーザーでログイン → 月次画面（月切替・収支一覧・月次集計・登録フォーム）
 # ログアウト → ログイン画面に戻る
 ```
 

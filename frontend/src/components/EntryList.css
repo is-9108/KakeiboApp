@@ -1,0 +1,63 @@
+.entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.entry-list h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.entry-list__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entry-list__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.entry-list__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-width: 0;
+}
+
+.entry-list__summary span {
+  overflow-wrap: anywhere;
+}
+
+.entry-list__date {
+  font-variant-numeric: tabular-nums;
+}
+
+.entry-list__memo {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #444;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.entry-list__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.entry-list__actions button {
+  padding: 4px 14px;
+  font-size: 0.9rem;
+}

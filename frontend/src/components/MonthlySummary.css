@@ -1,0 +1,68 @@
+.monthly-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.monthly-summary h2,
+.monthly-summary h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.monthly-summary__totals {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.monthly-summary__total {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.monthly-summary__total dt {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+.monthly-summary__total dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.monthly-summary__breakdown {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.monthly-summary__breakdown li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #eee;
+  min-width: 0;
+}
+
+.monthly-summary__category {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.monthly-summary__amount,
+.monthly-summary__percentage {
+  overflow-wrap: anywhere;
+}

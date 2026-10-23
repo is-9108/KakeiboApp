@@ -45,3 +45,28 @@ jobs:
           fi
           curl -s http://localhost:8080/health
           echo
+
+  browser-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得する
+        uses: actions/checkout@v4
+
+      - name: Node.jsをセットアップする
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 依存関係をインストールする
+        run: npm ci
+        working-directory: frontend
+
+      - name: PlaywrightのChromiumをインストールする
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      - name: ブラウザテストを実行する
+        run: npm run test:e2e
+        working-directory: frontend

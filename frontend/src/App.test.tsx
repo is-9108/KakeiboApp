@@ -3,7 +3,11 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import { AppRoutes } from './App'
 import { AuthProvider, type CognitoConfig } from './auth/AuthContext'
 import { fetchSession, signIn, completeNewPassword, signOutUser } from './auth/amplifyAuth'
-import { ApiError, fetchEntries } from './api/client'
+import {
+  ApiError,
+  fetchEntries,
+  fetchSummary,
+} from './api/client'
 
 /** テスト用のCognito設定（AuthProviderのconfigとして渡すがconfigureCognitoはモック済み） */
 const testConfig: CognitoConfig = {
@@ -26,11 +30,23 @@ vi.mock('./auth/amplifyAuth', () => ({
 
 vi.mock('./api/client', () => ({
   fetchEntries: vi.fn(),
+  fetchSummary: vi.fn(),
+  createEntry: vi.fn(),
+  updateEntry: vi.fn(),
+  deleteEntry: vi.fn(),
   ApiError: class extends Error {
     status: number
     constructor(message: string, status: number) {
       super(message)
       this.status = status
+    }
+  },
+  ApiValidationError: class extends Error {
+    fieldErrors: Record<string, readonly string[]>
+    constructor(message: string, fieldErrors: Record<string, readonly string[]>) {
+      super(message)
+      this.name = 'ApiValidationError'
+      this.fieldErrors = fieldErrors
     }
   },
   AccessTokenRefreshError: class extends Error {
@@ -54,6 +70,13 @@ function setupMocks({
     return Promise.resolve(session as never)
   })
   vi.mocked(fetchEntries).mockResolvedValue([])
+  vi.mocked(fetchSummary).mockResolvedValue({
+    month: '2031-01',
+    incomeTotal: 0,
+    expenseTotal: 0,
+    balance: 0,
+    expenseBreakdown: [],
+  })
 }
 
 /** Appのルーティング部分だけをテスト用に描画する（本番のBrowserRouterの二重ラップを避ける） */
@@ -95,7 +118,7 @@ describe('App（認証ガード）', () => {
       expect(screen.getByRole('heading', { name: 'ログイン' })).toBeInTheDocument()
     })
     expect(screen.getByTestId('current-path')).toHaveTextContent('/login')
-    expect(screen.queryByText('仮ページ')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '家計簿 月次画面' })).not.toBeInTheDocument()
   })
 
   it('未ログインなら未知のURLでもログイン画面を表示する（T10）', async () => {
@@ -105,7 +128,7 @@ describe('App（認証ガード）', () => {
       expect(screen.getByRole('heading', { name: 'ログイン' })).toBeInTheDocument()
     })
     expect(screen.getByTestId('current-path')).toHaveTextContent('/login')
-    expect(screen.queryByText('仮ページ')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '家計簿 月次画面' })).not.toBeInTheDocument()
   })
 
   it('セッション復元中は待機表示のみでログイン画面・本体を表示しない（T11）', async () => {
@@ -117,7 +140,7 @@ describe('App（認証ガード）', () => {
       expect(screen.getByTestId('checking-indicator')).toBeInTheDocument()
     })
     expect(screen.queryByRole('heading', { name: 'ログイン' })).not.toBeInTheDocument()
-    expect(screen.queryByText('仮ページ')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '家計簿 月次画面' })).not.toBeInTheDocument()
   })
 
   it('保存済みセッションで再読み込みすると本体を表示する（T16）', async () => {
@@ -126,11 +149,11 @@ describe('App（認証ガード）', () => {
     renderApp()
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '仮ページ' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '家計簿 月次画面' })).toBeInTheDocument()
     })
   })
 
-  it('ログイン成功すると仮ページへ遷移する（T12）', async () => {
+  it('ログイン成功すると月次画面へ遷移する（T12）', async () => {
     vi.mocked(signIn).mockResolvedValue({ isSignedIn: true, nextStep: { signInStep: 'DONE' } } as never)
 
     renderApp()
@@ -141,7 +164,7 @@ describe('App（認証ガード）', () => {
     await fillAndSubmitLoginForm('user@example.com', 'Passw0rd!')
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '仮ページ' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '家計簿 月次画面' })).toBeInTheDocument()
     })
   })
 
@@ -211,7 +234,7 @@ describe('App（認証ガード）', () => {
     fireEvent.click(screen.getByRole('button', { name: 'パスワードを変更する' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '仮ページ' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '家計簿 月次画面' })).toBeInTheDocument()
     })
   })
 
@@ -253,7 +276,7 @@ describe('App（認証ガード）', () => {
     await fillAndSubmitLoginForm('user@example.com', 'Passw0rd!')
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('未対応の認証ステップ'))
-    expect(screen.queryByRole('heading', { name: '仮ページ' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '家計簿 月次画面' })).not.toBeInTheDocument()
   })
 
   it('ログアウトするとログイン画面に戻る（T19）', async () => {
@@ -327,17 +350,23 @@ describe('AppとAPI連携', () => {
   })
 
   it('認証付きで収支APIを呼び、結果を表示する（T17）', async () => {
-    setupMocks({ session: { tokens: { accessToken: 'token-abc' } } })
-    vi.mocked(fetchEntries).mockResolvedValue([
-      { id: 1, date: '2031-01-15', type: '支出', amount: 1500, category: '外食費', memo: '昼食' },
-    ])
+    // 時計を固定して現在月の検証にする（Dateのみフェイク。待機処理は実タイマーのまま）
+    vi.useFakeTimers({ now: new Date('2026-10-15T00:00:00Z'), toFake: ['Date'] })
+    try {
+      setupMocks({ session: { tokens: { accessToken: 'token-abc' } } })
+      vi.mocked(fetchEntries).mockResolvedValue([
+        { id: 1, date: '2026-10-15', type: '支出', amount: 1500, category: '外食費', memo: '昼食' },
+      ])
 
-    renderApp()
+      renderApp()
 
-    await waitFor(() => {
-      expect(screen.getByText(/1500円/)).toBeInTheDocument()
-    })
-    expect(vi.mocked(fetchEntries)).toHaveBeenCalledWith('2031-01')
+      await waitFor(() => {
+        expect(screen.getByText(/1,500円/)).toBeInTheDocument()
+      })
+      expect(vi.mocked(fetchEntries)).toHaveBeenCalledWith('2026-10')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('APIの401でセッションを破棄しログインへ戻る（T18）', async () => {
