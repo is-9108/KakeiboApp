@@ -1,0 +1,384 @@
+/* 月次画面（issue #6）。モバイルファースト、900px以上で一覧とフォームを2列にする。 */
+.app-home {
+  box-sizing: border-box;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+  color: #1f2933;
+}
+
+.app-home *,
+.app-home *::before,
+.app-home *::after {
+  box-sizing: border-box;
+}
+
+.app-home h1,
+.app-home h2,
+.app-home h3,
+.app-home p,
+.app-home dl,
+.app-home dd,
+.app-home dt,
+.app-home ul {
+  margin: 0;
+}
+
+.app-home__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #d2d6dc;
+}
+
+.app-home__header h1 {
+  font-size: 1.5rem;
+}
+
+.app-home button {
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid #52606d;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2933;
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-home button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.app-home button:focus-visible,
+.app-home input:focus-visible,
+.app-home select:focus-visible,
+.app-home textarea:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.app-home__notice {
+  margin: 0.75rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.app-home__loading {
+  padding: 1rem 0;
+}
+
+.app-home__error {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid #b91c1c;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.app-home__error p {
+  margin-bottom: 0.5rem;
+}
+
+.app-home__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.month-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.month-navigation__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+.monthly-summary {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #d2d6dc;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.monthly-summary h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.monthly-summary__totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.5rem;
+}
+
+.monthly-summary__total {
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.monthly-summary__total dt {
+  font-size: 0.85rem;
+  color: #52606d;
+}
+
+.monthly-summary__total dd {
+  font-size: 1.1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.monthly-summary__breakdown-heading {
+  margin-top: 1rem;
+  font-size: 1rem;
+}
+
+.monthly-summary__empty {
+  margin-top: 0.5rem;
+  color: #52606d;
+}
+
+.monthly-summary__breakdown {
+  margin-top: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.monthly-summary__breakdown-item {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #e4e7eb;
+}
+
+.monthly-summary__category {
+  overflow-wrap: anywhere;
+}
+
+.monthly-summary__amount,
+.monthly-summary__percentage {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.entry-list,
+.entry-form {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #d2d6dc;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.entry-list__empty {
+  margin-top: 0.5rem;
+  color: #52606d;
+}
+
+.entry-list__items {
+  margin-top: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.entry-list__item {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e4e7eb;
+}
+
+.entry-list__date {
+  font-size: 0.85rem;
+  color: #52606d;
+}
+
+.entry-list__amount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.entry-list__type {
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.entry-list__type--income {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.entry-list__type--expense {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.entry-list__category {
+  overflow-wrap: anywhere;
+}
+
+.entry-list__memo {
+  color: #3e4c59;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.entry-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.entry-form__heading {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.entry-form__heading:focus {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.entry-form__hint {
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: #52606d;
+}
+
+.entry-form__field {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  min-width: 0;
+}
+
+.entry-form__field label {
+  font-weight: 600;
+}
+
+.entry-form__field input,
+.entry-form__field select,
+.entry-form__field textarea {
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0.5rem;
+  border: 1px solid #9aa5b1;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.entry-form__field textarea {
+  min-height: 3rem;
+  resize: vertical;
+}
+
+.entry-form__field [aria-invalid='true'] {
+  border-color: #b91c1c;
+}
+
+.entry-form__error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
+.entry-form__alert {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.entry-form__alert p,
+.delete-dialog__error p {
+  margin: 0;
+}
+
+.entry-form__alert button,
+.delete-dialog__error button {
+  margin-top: 0.5rem;
+}
+
+.entry-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.delete-dialog {
+  width: min(28rem, calc(100% - 2rem));
+  max-width: 100%;
+  padding: 1rem;
+  border: 1px solid #9aa5b1;
+  border-radius: 8px;
+}
+
+.delete-dialog__title {
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.delete-dialog__target {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: #f1f5f9;
+}
+
+.delete-dialog__memo {
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.delete-dialog__error {
+  margin-bottom: 0.75rem;
+  color: #b91c1c;
+}
+
+.delete-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.delete-dialog__confirm {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
+@media (min-width: 900px) {
+  .app-home {
+    padding: 2rem;
+  }
+
+  .app-home__columns {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
