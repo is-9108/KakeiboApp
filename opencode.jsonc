@@ -1,141 +1,46 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  // 工程ごとのエージェント。担当モデルは各エージェントの "model" を書き換えて変える。
-  // 使えるモデルは `opencode models` で確認できる（opencode-go/... は Go プラン枠、opencode/...-free は無料枠、openai/... は codex 枠）。
-  // OpenCode Go の利用枠はモデルごとに別なので、回数の多い工程には別々のモデルを割り当てる。
-  // 「約N回/5h」は Go プランで5時間に使える回数の目安（https://opencode.ai/v2/docs/console/go）。
-  // 共通ルールは AGENTS.md、工程ごとの手順は .opencode/skills/ に書く。ここではモデルと権限だけを決める。
-  // 権限は「すべて許可」が基本で、ここに書いたルールが後勝ちで上書きする。
-  "default_agent": "design",
-  // 全エージェント共通：~/.claude/skills などの外部 skill は使わない。各エージェントで必要な skill だけ許可する
-  "permissions": [
-    { "action": "skill", "resource": "*", "effect": "deny" },
-  ],
+  // 新規セッションの初期値。既存セッションの選択モデルは変更しません。
+  "default_agent": "harness",
+  // 窓口のモデルを変更するときは、このルート model と agents.harness.model の両方を変更する。片方だけの変更はしない。既存セッションの選択モデルは別途確認する。
+  "model": "opencode/glm-5.3-flash-free",
+  // 工程別モデルの設定場所はここだけです。agent の Markdown に重複させません。
   "agents": {
-    // 要件定義・設計（docs/ に保存）
-    "design": {
-      "description": "要件定義・設計を行い docs/ に保存する",
-      "mode": "primary",
-      // 要件定義・設計は複雑な判断が要るので codex の最上位コーディングモデル gpt-6.1-sol を使う。
-      // plan と同じモデルで codex の上限はアカウント単位に消費されるが、どちらも低頻度の工程なので許容
-      "model": "openai/gpt-6.1-sol",
-      "permissions": [
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*docs/*", "effect": "allow" },
-      ],
-    },
-    // 設計を受け入れ条件つきのissueに分割する
-    "issue": {
-      "description": "設計をissueに分割し、受け入れ条件つきで gh issue create する",
-      "mode": "primary",
-      // issueを書くだけの作業なので安いモデル（約4,300回/5h）
-      "model": "opencode-go/qwen3.7-plus",
-      "permissions": [
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "skill", "resource": "create-issue", "effect": "allow" },
-      ],
-    },
-    // issueごとの実装プラン（テストケース一覧を含む）を docs/plans/ に書く
-    "plan": {
-      "description": "issueごとの実装プランを docs/plans/issue-<番号>.md に書く",
-      "mode": "primary",
-      // テストケースの質が大事なので、design と同じ codex の最上位モデル gpt-6.1-sol を使う。
-      // codex の上限はアカウント単位なので Go プラン枠のように別モデルに分ける意味は薄い
-      "model": "openai/gpt-6.1-sol",
-      "permissions": [
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*docs/plans/*", "effect": "allow" },
-        { "action": "skill", "resource": "write-plan", "effect": "allow" },
-      ],
-    },
-    // 実装・テストコード作成・テスト実行・PR作成・追加issueの作成
-    "implement": {
-      "description": "プランに沿ってテストと実装を書き、テストを実行してPRを作成する",
-      "mode": "primary",
-      // 実装・テスト・PR作成の中心。最もトークンを使う工程なので無料枠の glm-5.3-flash-free を使う。
-      // レビューの往復回数が増えるようなら glm-5.3 に戻す。
-      // レビュー担当（deepseek-v4-pro・qwen3.8-flash）と系統を分ける
-      "model": "opencode/glm-5.3-flash-free",
-      "permissions": [
-        { "action": "shell", "resource": "git push origin main", "effect": "deny" },
-        { "action": "shell", "resource": "git push origin HEAD:main", "effect": "deny" },
-        { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
-        { "action": "skill", "resource": "create-pr", "effect": "allow" },
-        { "action": "skill", "resource": "create-issue", "effect": "allow" },
-      ],
-    },
-    // PRレビュー（メインセッション）：観点別レビューを scripts/review/run-reviewers.sh で独立したセッションとして起動し、
-    // .review/pr-<番号>/round-<回数>/ のmdファイルで結果を受け取って検証し、PRコメントに投稿する
-    "review": {
-      "description": "PRを多角的にレビューし、指摘を gh でPRコメントとして投稿する",
-      "mode": "primary",
-      // 指摘を検証して最終判断する役。implement と別系統。SWE-bench Verified 80.6%（約1,050回/5h、平日の日本時間10-13時・15-19時はピーク料金）
-      "model": "opencode-go/deepseek-v4-pro",
-      "permissions": [
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*.review/pr-*/round-*/request.md", "effect": "allow" },
-        { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
-        { "action": "skill", "resource": "review-pr", "effect": "allow" },
-        { "action": "subagent", "resource": "*", "effect": "deny" },
-      ],
-    },
-    // 以下2つは観点別レビュー。review が `opencode run --agent` で独立したセッションとして起動する。
-    // 書けるのは自分の結果ファイルだけ。モデルの系統を分けて見落としを減らす
-    "review-spec": {
-      "description": "PRが受け入れ条件・プラン・設計（docs/）どおりか、テストがプランのテストケース一覧を網羅し要件を検証できているかを確認し、spec.md に書く",
-      "mode": "primary",
-      // 文書・テストとの突き合わせが中心で読む量が多いので無料枠のモデル。
-      // implement（glm-5.3-flash-free）と別系統の DeepSeek を維持する
-      "model": "opencode/deepseek-v4.1-flash-free",
-      "permissions": [
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*.review/pr-*/round-*/spec.md", "effect": "allow" },
-        { "action": "subagent", "resource": "*", "effect": "deny" },
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "shell", "resource": "git diff *", "effect": "allow" },
-        { "action": "shell", "resource": "git log *", "effect": "allow" },
-        { "action": "shell", "resource": "git show *", "effect": "allow" },
-        { "action": "shell", "resource": "gh pr view *", "effect": "allow" },
-        { "action": "shell", "resource": "gh pr diff *", "effect": "allow" },
-        { "action": "shell", "resource": "gh issue view *", "effect": "allow" },
-        { "action": "skill", "resource": "spec-review", "effect": "allow" },
-      ],
-    },
-    "review-code": {
-      "description": "PRのコードのバグ・エッジケース・セキュリティ・保守性を確認し、code.md に書く",
-      "mode": "primary",
-      // implement（glm-5.3-flash-free）・review（deepseek-v4-pro）・review-spec（deepseek-v4.1-flash-free）と別系統。
-      // トークン使用量を抑えるため、試験的に qwen3.8-max から flash に下げている。見落としが増えるようなら qwen3.8-max に戻す
-      "model": "opencode-go/qwen3.8-flash",
-      "permissions": [
-        { "action": "edit", "resource": "*", "effect": "deny" },
-        { "action": "edit", "resource": "*.review/pr-*/round-*/code.md", "effect": "allow" },
-        { "action": "subagent", "resource": "*", "effect": "deny" },
-        { "action": "shell", "resource": "*", "effect": "deny" },
-        { "action": "shell", "resource": "git diff *", "effect": "allow" },
-        { "action": "shell", "resource": "git log *", "effect": "allow" },
-        { "action": "shell", "resource": "git show *", "effect": "allow" },
-        { "action": "shell", "resource": "gh pr view *", "effect": "allow" },
-        { "action": "shell", "resource": "gh pr diff *", "effect": "allow" },
-        { "action": "shell", "resource": "gh issue view *", "effect": "allow" },
-        { "action": "skill", "resource": "code-review", "effect": "allow" },
-      ],
-    },
-    // レビュー指摘の修正
-    "fix": {
-      "description": "PRのレビュー指摘を修正して再pushする",
-      "mode": "primary",
-      // 修正範囲は小さいが、コードを直してテストを通す必要がある。
-      // implement（無料枠の glm-5.3-flash-free）と別系統にして見落としを減らす。
-      // 同モデルを Go プラン枠から codex 枠に移したもの
-      "model": "openai/gpt-6-luna",
-      "permissions": [
-        { "action": "shell", "resource": "git push origin main", "effect": "deny" },
-        { "action": "shell", "resource": "git push origin HEAD:main", "effect": "deny" },
-        { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
-        { "action": "skill", "resource": "create-pr", "effect": "allow" },
-        { "action": "skill", "resource": "create-issue", "effect": "allow" },
-      ],
-    },
+    // 窓口は上のルート model と agents.harness.model の両方を揃えて変更する。既存セッションの選択モデルは別途確認する。
+    "harness": { "model": "opencode/glm-5.3-flash-free" },
+    "harness-planner": { "model": "openai/gpt-6.1-sol" },
+    "harness-implementer": { "model": "opencode/deepseek-v4.1-flash-free" },
+    "harness-review-spec": { "model": "openai/gpt-6.1-sol" },
+    "harness-review-quality": { "model": "openai/gpt-6-luna" },
+    "harness-writer": { "model": "openai/gpt-6.1-sol" }
   },
+  // 読み取り・検索・定型的な検証コマンドは確認なしに実行する。依存追加・削除・コミット・push・公開・DB移行などは "*" の ask による確認のまま残す。
+  // 許可パターンは順序評価の後ろ一致。導入先の検証コマンドは同形式で追加する（例: cargo test *、go test *）。
+  "permissions": [
+    { "action": "external_directory", "resource": "*", "effect": "ask" },
+    { "action": "shell", "resource": "*", "effect": "ask" },
+    { "action": "shell", "resource": "git status *", "effect": "allow" },
+    { "action": "shell", "resource": "git diff *", "effect": "allow" },
+    { "action": "shell", "resource": "git log *", "effect": "allow" },
+    { "action": "shell", "resource": "git rev-parse *", "effect": "allow" },
+    { "action": "shell", "resource": "git show *", "effect": "allow" },
+    { "action": "shell", "resource": "ls *", "effect": "allow" },
+    { "action": "shell", "resource": "cat *", "effect": "allow" },
+    { "action": "shell", "resource": "head *", "effect": "allow" },
+    { "action": "shell", "resource": "tail *", "effect": "allow" },
+    { "action": "shell", "resource": "wc *", "effect": "allow" },
+    { "action": "shell", "resource": "grep *", "effect": "allow" },
+    { "action": "shell", "resource": "rg *", "effect": "allow" },
+    { "action": "shell", "resource": "npm test *", "effect": "allow" },
+    { "action": "shell", "resource": "npm run lint *", "effect": "allow" },
+    { "action": "shell", "resource": "npm run typecheck *", "effect": "allow" },
+    { "action": "shell", "resource": "npm run build *", "effect": "allow" },
+    { "action": "shell", "resource": "pytest *", "effect": "allow" },
+    { "action": "shell", "resource": "python3 -m pytest *", "effect": "allow" },
+    { "action": "shell", "resource": "git add *", "effect": "allow" },
+    { "action": "shell", "resource": "git commit *", "effect": "allow" },
+    { "action": "shell", "resource": "git switch *", "effect": "allow" },
+    { "action": "shell", "resource": "git checkout *", "effect": "allow" },
+    { "action": "shell", "resource": "git push *", "effect": "allow" }
+  ]
 }
