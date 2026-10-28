@@ -3,7 +3,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import { AppRoutes } from './App'
 import { AuthProvider, type CognitoConfig } from './auth/AuthContext'
 import { fetchSession, signIn, completeNewPassword, signOutUser } from './auth/amplifyAuth'
-import { ApiError, fetchEntries } from './api/client'
+import { ApiError, fetchEntries, fetchSummary } from './api/client'
 
 /** テスト用のCognito設定（AuthProviderのconfigとして渡すがconfigureCognitoはモック済み） */
 const testConfig: CognitoConfig = {
@@ -24,22 +24,17 @@ vi.mock('./auth/amplifyAuth', () => ({
   SignInStep: { confirmSignUpNewPasswordRequired: 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED' },
 }))
 
-vi.mock('./api/client', () => ({
-  fetchEntries: vi.fn(),
-  ApiError: class extends Error {
-    status: number
-    constructor(message: string, status: number) {
-      super(message)
-      this.status = status
-    }
-  },
-  AccessTokenRefreshError: class extends Error {
-    constructor() {
-      super('セッションが失効しました。再度ログインしてください。')
-      this.name = 'AccessTokenRefreshError'
-    }
-  },
-}))
+vi.mock('./api/client', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./api/client')>()
+  return {
+    ...actual,
+    fetchEntries: vi.fn(),
+    fetchSummary: vi.fn(),
+    createEntry: vi.fn(),
+    updateEntry: vi.fn(),
+    deleteEntry: vi.fn(),
+  }
+})
 
 /** 各テストでのモック初期化をまとめる */
 function setupMocks({
@@ -54,6 +49,13 @@ function setupMocks({
     return Promise.resolve(session as never)
   })
   vi.mocked(fetchEntries).mockResolvedValue([])
+  vi.mocked(fetchSummary).mockResolvedValue({
+    month: '2026-10',
+    incomeTotal: 0,
+    expenseTotal: 0,
+    balance: 0,
+    expenseBreakdown: [],
+  })
 }
 
 /** Appのルーティング部分だけをテスト用に描画する（本番のBrowserRouterの二重ラップを避ける） */
@@ -95,7 +97,7 @@ describe('App（認証ガード）', () => {
       expect(screen.getByRole('heading', { name: 'ログイン' })).toBeInTheDocument()
     })
     expect(screen.getByTestId('current-path')).toHaveTextContent('/login')
-    expect(screen.queryByText('仮ページ')).not.toBeInTheDocument()
+    expect(screen.queryByText('家計簿')).not.toBeInTheDocument()
   })
 
   it('未ログインなら未知のURLでもログイン画面を表示する（T10）', async () => {
@@ -105,7 +107,7 @@ describe('App（認証ガード）', () => {
       expect(screen.getByRole('heading', { name: 'ログイン' })).toBeInTheDocument()
     })
     expect(screen.getByTestId('current-path')).toHaveTextContent('/login')
-    expect(screen.queryByText('仮ページ')).not.toBeInTheDocument()
+    expect(screen.queryByText('家計簿')).not.toBeInTheDocument()
   })
 
   it('セッション復元中は待機表示のみでログイン画面・本体を表示しない（T11）', async () => {
@@ -117,7 +119,7 @@ describe('App（認証ガード）', () => {
       expect(screen.getByTestId('checking-indicator')).toBeInTheDocument()
     })
     expect(screen.queryByRole('heading', { name: 'ログイン' })).not.toBeInTheDocument()
-    expect(screen.queryByText('仮ページ')).not.toBeInTheDocument()
+    expect(screen.queryByText('家計簿')).not.toBeInTheDocument()
   })
 
   it('保存済みセッションで再読み込みすると本体を表示する（T16）', async () => {
@@ -126,11 +128,11 @@ describe('App（認証ガード）', () => {
     renderApp()
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '仮ページ' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '家計簿' })).toBeInTheDocument()
     })
   })
 
-  it('ログイン成功すると仮ページへ遷移する（T12）', async () => {
+  it('ログイン成功すると家計簿へ遷移する（T12）', async () => {
     vi.mocked(signIn).mockResolvedValue({ isSignedIn: true, nextStep: { signInStep: 'DONE' } } as never)
 
     renderApp()
@@ -141,7 +143,7 @@ describe('App（認証ガード）', () => {
     await fillAndSubmitLoginForm('user@example.com', 'Passw0rd!')
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '仮ページ' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '家計簿' })).toBeInTheDocument()
     })
   })
 
@@ -211,7 +213,7 @@ describe('App（認証ガード）', () => {
     fireEvent.click(screen.getByRole('button', { name: 'パスワードを変更する' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '仮ページ' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: '家計簿' })).toBeInTheDocument()
     })
   })
 
@@ -253,7 +255,7 @@ describe('App（認証ガード）', () => {
     await fillAndSubmitLoginForm('user@example.com', 'Passw0rd!')
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('未対応の認証ステップ'))
-    expect(screen.queryByRole('heading', { name: '仮ページ' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '家計簿' })).not.toBeInTheDocument()
   })
 
   it('ログアウトするとログイン画面に戻る（T19）', async () => {
@@ -335,9 +337,12 @@ describe('AppとAPI連携', () => {
     renderApp()
 
     await waitFor(() => {
-      expect(screen.getByText(/1500円/)).toBeInTheDocument()
+      expect(screen.getByText('1,500円')).toBeInTheDocument()
     })
-    expect(vi.mocked(fetchEntries)).toHaveBeenCalledWith('2031-01')
+    expect(screen.getByText('昼食')).toBeInTheDocument()
+    const requestedMonth = vi.mocked(fetchEntries).mock.calls[0][0]
+    expect(requestedMonth).toMatch(/^\d{4}-\d{2}$/)
+    expect(vi.mocked(fetchSummary)).toHaveBeenCalledWith(requestedMonth)
   })
 
   it('APIの401でセッションを破棄しログインへ戻る（T18）', async () => {
@@ -345,6 +350,7 @@ describe('AppとAPI連携', () => {
     const actualApi = await vi.importActual<typeof import('./api/client')>('./api/client')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 401, ok: false }))
     vi.mocked(fetchEntries).mockImplementation(actualApi.fetchEntries)
+    vi.mocked(fetchSummary).mockImplementation(actualApi.fetchSummary)
     vi.mocked(signOutUser).mockResolvedValue(undefined)
 
     renderApp()
@@ -360,9 +366,10 @@ describe('AppとAPI連携', () => {
   it('refresh token失効時はセッションを破棄してログインへ戻る（T18）', async () => {
     vi.mocked(fetchSession)
       .mockResolvedValueOnce({ tokens: { accessToken: 'valid-token' } } as never)
-      .mockRejectedValueOnce(Object.assign(new Error('refresh rejected'), { name: 'NotAuthorizedException' }))
+      .mockRejectedValue(Object.assign(new Error('refresh rejected'), { name: 'NotAuthorizedException' }))
     const actualApi = await vi.importActual<typeof import('./api/client')>('./api/client')
     vi.mocked(fetchEntries).mockImplementation(actualApi.fetchEntries)
+    vi.mocked(fetchSummary).mockImplementation(actualApi.fetchSummary)
     vi.mocked(signOutUser).mockResolvedValue(undefined)
 
     renderApp()
