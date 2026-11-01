@@ -8,6 +8,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<KakeiboDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddCognitoAuthentication(builder.Configuration);
+// AWS Lambda（API Gateway HTTP API）ではKestrelの代わりにLambdaランタイムで待ち受ける。
+// Lambda外（ローカル・テスト）では何もしないため、通常のKestrel起動は維持される。
+builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 // どのエンドポイントにも認証を必須にする。匿名を許すエンドポイントのみ明示的にAllowAnonymousを指定する
 builder.Services.AddAuthorization(options =>
 {
@@ -17,8 +20,10 @@ builder.Services.AddAuthorization(options =>
 });
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+// 本番ではDDLを実行しない。開発・テストはDatabase:RunMigrationsOnStartupで明示的に有効化する。
+if (DatabaseMigration.ShouldMigrate(app.Environment, app.Configuration))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<KakeiboDbContext>();
     db.Database.Migrate();
 }

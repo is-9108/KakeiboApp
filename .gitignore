@@ -15,6 +15,29 @@ frontend/.vite/
 
 # 環境変数（DBパスワードなど）
 .env
+.env.*
+# 共有する設定例だけを追跡する
+!.env.example
+!frontend/.env.production.example
+
+# AWS / IaC の成果物・ローカル設定
+.aws-sam/
+.artifacts/
+infra/samconfig.toml
+infra/parameters.local.json
+infra/secrets/
+
+# Terraform: state・保存 plan・実値の設定は追跡しない
+.terraform/
+*.tfstate*
+*.tfvars
+*.tfvars.json
+*.tfplan
+crash.log
+crash.*.log
+infra/backend.s3.hcl
+# 共有する設定例は追跡する（.terraform.lock.hcl も追跡する）
+!*.tfvars.example
 
 # OS
 .DS_Store
