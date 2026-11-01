@@ -38,6 +38,16 @@
    ```
    ※一時パスワードにする場合は `--no-permanent` を指定する。フロントの初回ログインでパスワード変更画面が出る。
 
+## 本番環境（AWS）での設定
+
+本番構成（CloudFront + API Gateway HTTP API + Lambda + Neon）の構築・デプロイ・更新・検証手順は `docs/deployment.md` を参照してください。認証に関する本番側の前提は次のとおりです。
+
+- Cognito User Pool / App Client は IaC（`infra/` の Terraform）に含めません。既存 Pool の再利用または手動作成とし、本ドキュメントの「Cognito側の初期設定」と同じ設定（自己サインアップ禁止、シークレットなし App Client、`ALLOW_USER_SRP_AUTH`、管理者によるユーザー作成）を確認します。
+- API の Lambda には `Cognito__Region`、`Cognito__UserPoolId`、`Cognito__AppClientId` を環境変数で渡します。
+- フロントはビルド時に `VITE_COGNITO_*` を取り込みます。実値は `frontend/.env.production.local`（`.gitignore` 済み）へ設定し、例は `frontend/.env.production.example` にあります。
+- 本番の Lambda は起動時マイグレーションを実行しません。`ASPNETCORE_ENVIRONMENT=Production` では `Database__RunMigrationsOnStartup` の値にかかわらず無効です。スキーマは `docs/deployment.md` の手順で冪等 SQL を手動適用します。
+- ブラウザは CloudFront の同一オリジンへアクセスするため、CORS 設定は追加しません。API Gateway の直 URL をブラウザから使う構成はサポート対象外です（curl 検証は可能）。
+
 ## ローカル環境での設定
 
 `.env` に値を設定する（`.env.example` をコピー）：
@@ -52,6 +62,7 @@ COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxxxxx
 - フロントには `VITE_COGNITO_*` として渡る（Viteの環境変数仕様：`import.meta.env`）。
 - **値を空にすると**、APIはテスト用プレースホルダ値（authは実Cognitoに到達できないが、テストは通る）で起動する。実Cognito確認のときは必ず実値を設定する。
 - `COGNITO_USER_POOL_ID` は `<COGNITO_REGION>_<Pool ID>` の形式、App Client IDは英数字であることをAPI起動時に検証する。
+- ローカル（`ASPNETCORE_ENVIRONMENT=Development`）では `api/appsettings.Development.json` により起動時マイグレーションが有効。本番（`Production`）では設定にかかわらず無効で、スキーマは手動適用する（`docs/deployment.md`）。
 
 ## ローカルでの起動と確認
 

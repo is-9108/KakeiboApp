@@ -1,0 +1,21 @@
+# Terraform の入力例。実値をコミットしない。
+# `cp infra/terraform.tfvars.example infra/terraform.tfvars` して値を設定する。
+# infra/terraform.tfvars は .gitignore 済み。
+#
+# 接続文字列そのものは tfvars に書かない。Secrets Manager の ARN だけを渡す。
+# ただし data 参照と Lambda 環境変数の管理により、接続文字列は state と保存 plan に含まれる
+# （ユーザー承認済み。docs/deployment.md 5章の保管・アクセス制限に従う）。
+
+aws_region  = "ap-northeast-1"
+# 3〜16 文字の小文字英数字とハイフン（先頭・末尾は英数字）。
+# バケット名が 63 文字以内に収まるよう 16 文字までに制限している。
+name_prefix = "kakeibo"
+
+database_secret_arn = "arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:kakeibo/database-EXAMPLE"
+
+cognito_region        = "ap-northeast-1"
+cognito_user_pool_id  = "ap-northeast-1_xxxxxxxxx"
+cognito_app_client_id = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Lambda ZIP の場所（infra/ からの相対）。通常は既定値のまま。
+# api_zip_path = "../.artifacts/api.zip"

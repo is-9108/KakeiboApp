@@ -60,6 +60,8 @@ public sealed class KakeiboApiTestFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:DefaultConnection", _testConnectionString);
+        // テストではProgram.csの起動時マイグレーションを明示的に有効化する（本番既定は無効）。
+        builder.UseSetting("Database:RunMigrationsOnStartup", "true");
         builder.UseSetting("Cognito:Region", "us-east-1");
         builder.UseSetting("Cognito:UserPoolId", "us-east-1_testpool");
         builder.UseSetting("Cognito:AppClientId", TestTokenFactory.AppClientId);

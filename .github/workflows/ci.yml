@@ -45,3 +45,57 @@ jobs:
           fi
           curl -s http://localhost:8080/health
           echo
+
+  # AWS の認証情報や実リソースを使わず、デプロイ用の成果物と Terraform 定義を検証する。
+  infra:
+    runs-on: ubuntu-latest
+    env:
+      TF_IN_AUTOMATION: 'true'
+    steps:
+      - name: リポジトリを取得する
+        uses: actions/checkout@v4
+
+      - name: .NET SDK をセットアップする
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Node.js をセットアップする
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Terraform をセットアップする
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.17.1'
+          terraform_wrapper: false
+
+      - name: Lambda パッケージを作成する
+        run: ./infra/scripts/package-api.sh
+
+      - name: マイグレーション SQL を生成する
+        run: ./infra/scripts/generate-migration-sql.sh
+
+      - name: SPA フォールバックのテストを実行する
+        run: node --test 'infra/tests/**/*.test.mjs'
+
+      - name: Terraform のフォーマットを確認する
+        run: terraform -chdir=infra fmt -check -recursive
+
+      - name: Terraform を初期化する（backend なし・AWS 認証情報なし）
+        run: terraform -chdir=infra init -backend=false -input=false
+
+      - name: Terraform の構成を検証する
+        run: terraform -chdir=infra validate
+
+      - name: Terraform の構成テスト（mock provider / plan）を実行する
+        run: terraform -chdir=infra test
+
+      - name: 本番形式の設定例でフロントエンドをビルドする
+        working-directory: frontend
+        run: |
+          cp .env.production.example .env.production.local
+          npm ci
+          npm run build
+          rm -f .env.production.local
