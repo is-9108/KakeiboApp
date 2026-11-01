@@ -7,15 +7,16 @@
   // 工程別モデルの設定場所はここだけです。agent の Markdown に重複させません。
   "agents": {
     // 窓口は上のルート model と agents.harness.model の両方を揃えて変更する。既存セッションの選択モデルは別途確認する。
-    "harness": { "model": "opencode/glm-5.3-flash-free" },
+    "harness": { "model": "opencode-go/glm-5.3-flash" },
     "harness-planner": { "model": "openai/gpt-6.1-sol" },
-    "harness-implementer": { "model": "opencode/deepseek-v4.1-flash-free" },
+    "harness-implementer": { "model": "opencode-go/deepseek-v4.1-flash" },
     "harness-review-spec": { "model": "openai/gpt-6.1-sol" },
     "harness-review-quality": { "model": "openai/gpt-6-luna" },
     "harness-writer": { "model": "openai/gpt-6.1-sol" }
   },
-  // 読み取り・検索・定型的な検証コマンドは確認なしに実行する。依存追加・削除・コミット・push・公開・DB移行などは "*" の ask による確認のまま残す。
+  // 読み取り・検索・定型的な検証コマンドは確認なしに実行する。依存追加・AWS デプロイなどは "*" の ask による確認のまま残す。
   // 許可パターンは順序評価の後ろ一致。導入先の検証コマンドは同形式で追加する（例: cargo test *、go test *）。
+  // 外部とのやり取り（curl 等）は ask、削除系・git の破壊的操作・ボリューム等の削除は配列末尾の deny で常に拒否する（後一致で deny が勝つ）。
   "permissions": [
     { "action": "external_directory", "resource": "*", "effect": "ask" },
     { "action": "shell", "resource": "*", "effect": "ask" },
@@ -31,16 +32,54 @@
     { "action": "shell", "resource": "wc *", "effect": "allow" },
     { "action": "shell", "resource": "grep *", "effect": "allow" },
     { "action": "shell", "resource": "rg *", "effect": "allow" },
+    { "action": "shell", "resource": "which *", "effect": "allow" },
+    { "action": "shell", "resource": "command -v *", "effect": "allow" },
+    { "action": "shell", "resource": "mkdir *", "effect": "allow" },
+    { "action": "shell", "resource": "touch *", "effect": "allow" },
     { "action": "shell", "resource": "npm test *", "effect": "allow" },
     { "action": "shell", "resource": "npm run lint *", "effect": "allow" },
     { "action": "shell", "resource": "npm run typecheck *", "effect": "allow" },
     { "action": "shell", "resource": "npm run build *", "effect": "allow" },
+    { "action": "shell", "resource": "npm ci *", "effect": "allow" },
+    { "action": "shell", "resource": "node --test *", "effect": "allow" },
+    { "action": "shell", "resource": "dotnet build *", "effect": "allow" },
+    { "action": "shell", "resource": "dotnet test *", "effect": "allow" },
+    { "action": "shell", "resource": "dotnet publish *", "effect": "allow" },
+    { "action": "shell", "resource": "dotnet clean *", "effect": "allow" },
+    { "action": "shell", "resource": "dotnet tool restore *", "effect": "allow" },
+    { "action": "shell", "resource": "docker compose run *", "effect": "allow" },
+    { "action": "shell", "resource": "docker compose build *", "effect": "allow" },
+    { "action": "shell", "resource": "sam validate *", "effect": "allow" },
     { "action": "shell", "resource": "pytest *", "effect": "allow" },
     { "action": "shell", "resource": "python3 -m pytest *", "effect": "allow" },
     { "action": "shell", "resource": "git add *", "effect": "allow" },
     { "action": "shell", "resource": "git commit *", "effect": "allow" },
     { "action": "shell", "resource": "git switch *", "effect": "allow" },
     { "action": "shell", "resource": "git checkout *", "effect": "allow" },
-    { "action": "shell", "resource": "git push *", "effect": "allow" }
+    { "action": "shell", "resource": "git push *", "effect": "allow" },
+    // ファイル編集（edit/write/patch）は常に許可。外部ディレクトリは external_directory の判定が先に適用される
+    { "action": "edit", "resource": "*", "effect": "allow" },
+    // 外部とのやり取りは確認する
+    { "action": "shell", "resource": "curl *", "effect": "ask" },
+    { "action": "shell", "resource": "wget *", "effect": "ask" },
+    { "action": "shell", "resource": "ssh *", "effect": "ask" },
+    { "action": "shell", "resource": "scp *", "effect": "ask" },
+    { "action": "shell", "resource": "rsync *", "effect": "ask" },
+    { "action": "shell", "resource": "nc *", "effect": "ask" },
+    // 削除系・破壊的操作は常に拒否する（deny はどの許可より優先させるため末尾に置く）
+    { "action": "shell", "resource": "rm *", "effect": "deny" },
+    { "action": "shell", "resource": "rmdir *", "effect": "deny" },
+    { "action": "shell", "resource": "unlink *", "effect": "deny" },
+    { "action": "shell", "resource": "shred *", "effect": "deny" },
+    { "action": "shell", "resource": "git reset *", "effect": "deny" },
+    { "action": "shell", "resource": "git clean *", "effect": "deny" },
+    { "action": "shell", "resource": "git rebase *", "effect": "deny" },
+    { "action": "shell", "resource": "git restore *", "effect": "deny" },
+    { "action": "shell", "resource": "git checkout -- *", "effect": "deny" },
+    { "action": "shell", "resource": "git stash drop *", "effect": "deny" },
+    { "action": "shell", "resource": "git stash clear *", "effect": "deny" },
+    { "action": "shell", "resource": "git worktree remove *", "effect": "deny" },
+    { "action": "shell", "resource": "docker compose down *", "effect": "deny" },
+    { "action": "shell", "resource": "docker volume rm *", "effect": "deny" }
   ]
 }
