@@ -5,8 +5,48 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
-  test:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend == 'true' || steps.filter.outputs.shared == 'true' }}
+      api: ${{ github.event_name == 'push' || steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true' }}
+      infra: ${{ github.event_name == 'push' || steps.filter.outputs.infra == 'true' || steps.filter.outputs.shared == 'true' }}
+    steps:
+      - name: リポジトリを取得する
+        uses: actions/checkout@v4
+
+      - name: 変更されたパスを判定する
+        if: github.event_name == 'pull_request'
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          predicate-quantifier: 'some-with-excludes'
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - '!**/*.md'
+            api:
+              - 'api/**'
+              - '!**/*.md'
+            infra:
+              - 'infra/**'
+              - '!**/*.md'
+            shared:
+              - '**'
+              - '!frontend/**'
+              - '!api/**'
+              - '!infra/**'
+              - '!docs/**'
+              - '!**/*.md'
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: リポジトリを取得する
@@ -16,23 +56,44 @@ jobs:
         run: |
           printf 'POSTGRES_USER=kakeibo\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=kakeibo\n' "$(openssl rand -hex 16)" > .env
 
-      - name: コンテナイメージをビルドする
-        run: docker compose build api frontend
+      - name: フロントエンドのコンテナイメージをビルドする
+        run: docker compose build frontend
+
+      - name: フロントエンドの lint を実行する
+        run: docker compose run --rm --no-deps frontend sh -c "npm ci && npm run lint"
+
+      - name: フロントエンドのテストを実行する
+        run: docker compose run --rm --no-deps frontend npm test
+
+      - name: フロントエンドのビルド確認
+        run: docker compose run --rm --no-deps frontend npm run build
+
+  api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得する
+        uses: actions/checkout@v4
+
+      - name: 環境変数（.env）を用意する
+        run: |
+          printf 'POSTGRES_USER=kakeibo\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=kakeibo\n' "$(openssl rand -hex 16)" > .env
+
+      - name: API のコンテナイメージをビルドする
+        run: docker compose build api
+
+      - name: API の lint を実行する
+        run: docker compose run --rm --no-deps api dotnet format Kakeibo.slnx --verify-no-changes
 
       - name: APIのテストを実行する
         run: docker compose run --rm api dotnet test Kakeibo.slnx
 
-      - name: フロントエンドのテストを実行する
-        run: docker compose run --rm --no-deps frontend sh -c "npm ci && npm test"
-
-      - name: フロントエンドのビルド確認
-        run: docker compose run --rm --no-deps frontend sh -c "npm run build"
-
       - name: 疎通確認（smoke test）
         run: |
-          docker compose up -d
+          docker compose up -d api
           code="000"
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health || true)
             if [ "$code" = "200" ]; then break; fi
             sleep 3
@@ -48,6 +109,8 @@ jobs:
 
   # AWS の認証情報や実リソースを使わず、デプロイ用の成果物と Terraform 定義を検証する。
   infra:
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     env:
       TF_IN_AUTOMATION: 'true'
@@ -99,3 +162,26 @@ jobs:
           npm ci
           npm run build
           rm -f .env.production.local
+
+  ci-result:
+    name: CI 結果
+    needs: [changes, frontend, api, infra]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 各ジョブの結果を確認する
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          API_RESULT: ${{ needs.api.result }}
+          INFRA_RESULT: ${{ needs.infra.result }}
+        run: |
+          echo "changes: $CHANGES_RESULT"
+          echo "frontend: $FRONTEND_RESULT"
+          echo "api: $API_RESULT"
+          echo "infra: $INFRA_RESULT"
+          for result in "$CHANGES_RESULT" "$FRONTEND_RESULT" "$API_RESULT" "$INFRA_RESULT"; do
+            case "$result" in
+              failure|cancelled) exit 1 ;;
+            esac
+          done

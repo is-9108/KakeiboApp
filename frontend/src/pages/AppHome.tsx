@@ -125,43 +125,59 @@ export default function AppHome() {
     }
   }, [])
 
-  /**
-   * 指定月の一覧と集計を並行取得する。
-   * 世代番号で、月切替前の遅延レスポンスが最新画面を上書きしないようにする。
-   */
-  const loadMonth = useCallback(
-    async (targetMonth: string): Promise<boolean> => {
-      const generation = generationRef.current + 1
-      generationRef.current = generation
-      setLoadState('loading')
-      setData(null)
+  const applyMonthData = useCallback(
+    (generation: number, targetMonth: string, entries: ApiEntry[], summary: ApiMonthlySummary): boolean => {
+      if (!mountedRef.current || generation !== generationRef.current) return false
+      setData({ month: targetMonth, entries, summary })
+      setLoadState('ready')
+      return true
+    },
+    [],
+  )
 
-      try {
-        const [entries, summary] = await Promise.all([
-          fetchEntries(targetMonth),
-          fetchSummary(targetMonth),
-        ])
-        if (!mountedRef.current || generation !== generationRef.current) return false
-        setData({ month: targetMonth, entries, summary })
-        setLoadState('ready')
-        return true
-      } catch (error) {
-        if (!mountedRef.current || generation !== generationRef.current) return false
-        if (error instanceof AccessTokenRefreshError) {
-          await signOut()
-          return false
-        }
-        setData(null)
-        setLoadState('error')
+  const applyMonthError = useCallback(
+    async (generation: number, error: unknown): Promise<boolean> => {
+      if (!mountedRef.current || generation !== generationRef.current) return false
+      if (error instanceof AccessTokenRefreshError) {
+        await signOut()
         return false
       }
+      setData(null)
+      setLoadState('error')
+      return false
     },
     [signOut],
   )
 
+  /**
+   * 指定月の一覧と集計を並行取得する。
+   * 世代番号で、月切替前の遅延レスポンスが最新画面を上書きしないようにする。
+   */
+  const fetchMonth = useCallback(
+    (targetMonth: string): Promise<boolean> => {
+      const generation = generationRef.current + 1
+      generationRef.current = generation
+      // effect から同期的に setState しないよう、結果の反映は Promise のコールバックで行う。
+      return Promise.all([fetchEntries(targetMonth), fetchSummary(targetMonth)]).then(
+        ([entries, summary]) => applyMonthData(generation, targetMonth, entries, summary),
+        (error: unknown) => applyMonthError(generation, error),
+      )
+    },
+    [applyMonthData, applyMonthError],
+  )
+
+  const loadMonth = useCallback(
+    (targetMonth: string): Promise<boolean> => {
+      setLoadState('loading')
+      setData(null)
+      return fetchMonth(targetMonth)
+    },
+    [fetchMonth],
+  )
+
   useEffect(() => {
-    void loadMonth(month)
-  }, [month, loadMonth])
+    void fetchMonth(month)
+  }, [month, fetchMonth])
 
   const beginMutation = (): boolean => {
     if (mutationRef.current) return false
@@ -179,6 +195,8 @@ export default function AppHome() {
     if (mutationRef.current) return
     setNotice(null)
     setMonth((current) => shiftMonth(current, delta))
+    setLoadState('loading')
+    setData(null)
   }
 
   const handleSubmit = async (input: EntryInput) => {
