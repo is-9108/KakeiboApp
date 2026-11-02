@@ -43,10 +43,5 @@ infra/backend.s3.hcl
 .DS_Store
 Thumbs.db
 
-# pi-workflow:start
-/work/status.md
-/work/status.md.lock/
-/work/.status-*.tmp
-/work/*/testing/*.log
-/work/*/testing/*.md.lock/
-# pi-workflow:end
+# workflow:start
+.ai/

@@ -1,36 +1,113 @@
-# 軽量開発ハーネス
+# AGENTS.md
 
-## 基本ルール
+Codex 向けの作業ルール。共通の開発フローとテンプレートは `docs/workflow.md` にある。
 
-- 関連する指示・仕様・コード・テストと既存差分を先に読む。既存資料で分かることは質問しない。
-- 誤字など明確で低リスクな小変更は、計画書と複数レビューを省略してよい。変更と必要な検証は省略しない。
-- 目的・受け入れ条件・互換性・安全性が曖昧なら確認する。要件を勝手に追加・省略しない。
-- 計画の依頼は実装許可ではない。通常変更は計画の承認と実装依頼を得てから実装する。会話で承認済みの計画は、編集可能な状態で planner が同内容を plan.md に保存する。**plan.md の保存後は、保存した計画書の内容・スコープ・対象ファイル一覧をユーザーに提示して承認を得てから実装へ渡す。** 会話承認だけでは実装を開始しない。保存内容が会話で承認した計画と一致していることを必ず確認する。内容不変なら再承認不要、意味や範囲を変えるなら再承認を得る。
-- 既存のユーザー変更を破棄しない。無関係な改善、依存追加、コミット、push、公開、worktree 作成・削除を勝手に行わない。
-- 要件・設計・タスク・レビューなどの作業文書は、このプロジェクトの `docs/` 配下に置く。設定・`AGENTS.md`・skills は例外。
-- 計画は `docs/changes/<変更名>/plan.md`、レビューと検証は同じ場所の `review.md` にまとめる。既存文書は読んでから更新し、別変更の内容を上書きしない。
-- 計画は planner、それ以外の文書の新規作成・大幅更新は writer が担う。docs/ 外の承認済み配置（README.md、AGENTS.md、skills など）への新規作成・更新は、writer の内容案と適用先・範囲を親経由で implementer が限定反映する。writer の権限は広げず、新しい作業文書は docs/ に置く。誤字など小変更は実装担当が直接修正してよい。
-- 単独レビューは原則会話で返し、単純な統合は窓口、複雑な食い違いは writer にテキスト統合を依頼する。単独レビューの保存は依頼時のみ、通常実装後の完了レビューは writer が review.md に保存する。レビューだけの依頼でコードを修正しない。
-- `docs/specs/` は現行の合意済み仕様。必要なときだけ作り、変更案や未承認の要求を現行仕様に混ぜない。
-- 実行していない検証を成功扱いしない。コマンド・結果・未検証事項を明示する。検証後に対象が変わったら再検証する。
-- 上位の権限・Plan モード制約を守る。docs への編集許可を実装許可や Plan モードの回避に使わない。
+## 担当範囲
 
-## 担当と入口
+- 承認済み Issue の実装
+- テストコードの作成（TDD）と実行
+- 不具合の修正
+- 承認済みレビュー指摘の修正
 
-モデルは `opencode.jsonc` の `agents.<担当>.model` で変更する。窓口（`harness`）のモデルを変更するときは、ルートの `model` と `agents.harness.model` の両方を変更し、片方だけの変更はしない。既存セッションの選択モデルは別途確認する。本文で挙げる Sol・Flash は役割の目安で、実際の割り当ては `opencode.jsonc` の設定を優先する。
+要件定義・計画・レビューは Claude Code が担当する。
+計画の不備や矛盾に気づいた場合は、自分で計画を変えずに報告する。
 
-| 工程 | 担当 agent | skill |
-| --- | --- | --- |
-| 質問・回答収集・進行 | `harness` | `harness-plan` |
-| 要求統合・設計・計画文書 | `harness-planner` | `harness-plan` |
-| 実装・テスト・通常の修正 | `harness-implementer` | `harness-implement` |
-| 仕様・設計の独立レビュー | `harness-review-spec` | `harness-review` |
-| 正確性・テスト・安全性の独立レビュー | `harness-review-quality` | `harness-review` |
-| レビュー統合・文書更新 | `harness-writer` | `harness-review` |
+## 着手前の確認
 
-- `harness` は窓口。通常変更の仕様化・実装・レビュー・文書作成は対応する担当に渡す。
-- 子 agent を使う際は `agent` を指定し、`model` は呼び出しで上書きせず agent 設定を使う。
-- 引き継ぎにはプロジェクトの絶対パス、依頼、承認範囲、対象文書・ファイル、検証結果を必要な分だけ渡す。
-- **割り当てられた子 agent は自分の工程だけを行う。** 要件定義をやり直さず、追加 agent を起動しない。不足情報は親へ返す。
-- 指定 agent・モデルが利用できなければ、その工程を止めて設定変更を相談する。無断で別モデルや自己作業へ切り替えない。
-- モデル指定と手順は指示による運用であり、hooks による自動強制ではない。
+1. Issue を読む（`gh issue view <番号>`）。読めない場合は人間に内容を求める。
+2. `.ai/plan.md` を読み、`状態: 承認済み` であることを確認する。承認済みでなければ着手しない。
+3. 現在のブランチが Issue 用（`issue-<番号>-*`）であることを確認する。main では作業しない。
+4. 作業前にテストを実行し、既存の失敗があれば記録しておく。
+
+## TDD
+
+- テスト計画の項目ごとに Red → Green → Refactor を繰り返す。
+- 実装の前にテストを書き、そのテストが失敗することを確認する。
+- 不具合の修正は、再現テストから始める。
+- 既存のテストを削除・skip したり、条件を弱めたりしない。必要な場合は人間に確認する。
+
+## テスト実行
+
+- コマンドは下の「プロジェクト情報」に従う。
+- 完了報告の前に、テスト全体・lint・型チェック（ある場合）を実行する。
+- 失敗・skip・不安定なテストを隠さず報告する。
+
+## コード品質
+
+- 既存の規約・構成・ライブラリに合わせる。
+- 計画にないリファクタリング・抽象化・機能追加をしない。
+- 秘密情報をコード・テスト・ログに含めない。
+- 変更は小さく保ち、意味のある単位でコミットする。
+
+## Git 操作
+
+- コミットは Issue ブランチにだけ行う。
+- push と PR 作成は、人間の指示があった場合だけ行う。PR は Draft で作成する。
+- 次の操作は禁止:
+  - main への commit / push
+  - force push
+  - push 済み履歴の書き換え
+  - PR のマージ
+- 未コミットの変更を捨てる操作（`reset --hard`、`clean`、`checkout -- .` など）は、人間に確認してから行う。
+
+## 人間への確認事項
+
+次の場合は、作業を止めて確認する。
+
+- Issue の範囲外の変更が必要になった
+- 計画と異なる設計が必要になった（公開 API、データ構造、DB スキーマなど）
+- 依存パッケージの追加・更新が必要になった
+- 要件が曖昧、または計画とコードが矛盾している
+- 同じ問題を 3 回試しても解決しない
+
+確認するときは、「状況・選択肢・推奨案」を簡潔に示す。
+
+## 完了時の報告
+
+`docs/workflow.md` のテンプレートに従って `.ai/report.md` に書き、同じ要点をチャットでも報告する。
+
+- 実施内容
+- 変更ファイル
+- テスト結果（コマンドと結果）
+- 計画との差分
+- 未解決事項・確認事項
+
+レビュー指摘を修正したときは、指摘 ID ごとの対応内容を `.ai/report.md` に追記する。
+
+## プロジェクト情報
+
+個人用の家計簿 Web アプリ。要件は `docs/requirements.md` を参照する。
+
+- 技術スタック:
+  - API: .NET 10 の Minimal API（`api/`）、EF Core と Npgsql（PostgreSQL）、Cognito の JWT 認証。本番は `Amazon.Lambda.AspNetCoreServer.Hosting` で Lambda（`provided.al2023`）上で動く
+  - フロントエンド: React 18、TypeScript、Vite、React Router、Amplify（Cognito ログイン）（`frontend/`）
+  - DB: ローカルと CI は PostgreSQL 18（Docker）、本番は Neon
+  - インフラ: Terraform 1.17.1（`infra/`）。Lambda、API Gateway、S3、CloudFront を管理する
+  - テスト: API は xUnit と `WebApplicationFactory`、フロントエンドは Vitest と Testing Library
+- セットアップ:
+  - `cp .env.example .env` を実行し、`POSTGRES_PASSWORD` を設定する
+  - `docker compose up -d` で起動する（API: http://localhost:8080 、フロントエンド: http://localhost:5173 ）
+  - コマンドはすべて Docker Compose 経由で実行する（ホストに .NET / Node は不要）
+- テスト:
+  - API: `docker compose run --rm api dotnet test Kakeibo.slnx`（テスト用 PostgreSQL が必要。テストクラスごとに専用の DB を作成する）
+  - フロントエンド: `docker compose run --rm --no-deps frontend sh -c "npm ci && npm test"`
+  - infra: `node --test 'infra/tests/**/*.test.mjs'`、`terraform -chdir=infra test`
+- lint / format:
+  - API: `docker compose run --rm --no-deps api dotnet format Kakeibo.slnx --verify-no-changes`
+  - フロントエンド: lint は未導入（Issue B で ESLint を導入予定）
+  - infra: `terraform -chdir=infra fmt -check -recursive`
+- 型チェック:
+  - フロントエンド: `docker compose run --rm --no-deps frontend sh -c "npm ci && npx tsc --noEmit"`
+  - API: ビルドとテストの実行時にコンパイルで確認する
+- ビルド:
+  - フロントエンド: `docker compose run --rm --no-deps frontend sh -c "npm run build"`
+  - Lambda パッケージ: `./infra/scripts/package-api.sh`
+  - マイグレーション SQL: `./infra/scripts/generate-migration-sql.sh`
+- 規約・注意点:
+  - コメント、ドキュメント、UI の文言、テスト名は日本語で書く
+  - カテゴリはプリセット固定（`api/Models/Presets.cs`）。フロントエンド側の定義（`frontend/src/domain/entries.ts`）と一致させる
+  - DB スキーマを変更するときは、EF Core のマイグレーションを追加する（`docker compose run --rm api dotnet ef migrations add <名前>`。ツールは `api/.config/dotnet-tools.json` で固定している）
+  - 本番では起動時にマイグレーションを実行しない（`Database__RunMigrationsOnStartup=false`）。マイグレーションは、生成した冪等な SQL で適用する
+  - フロントエンドの CSS はページ単位のファイルに書き、モバイルファーストで作る（例: `frontend/src/pages/AppHome.css`）
+  - 秘密情報（`.env`、`*.tfvars`、`infra/backend.s3.hcl`）はコミットしない
+  - デプロイ手順は `docs/deployment.md`、認証の構成は `docs/authentication.md` を参照する
