@@ -39,6 +39,14 @@ export default function EntryForm({
   onReload,
 }: EntryFormProps) {
   const [errors, setErrors] = useState<EntryFieldErrors>({})
+  const [previousEdit, setPreviousEdit] = useState({ mode, editKey })
+
+  // 編集開始の識別子が変わったときだけ、描画前にフィールドのエラーを消す。
+  // effect では更新せず、フォーカスとスクロールの処理だけを行う。
+  if (previousEdit.mode !== mode || previousEdit.editKey !== editKey) {
+    setPreviousEdit({ mode, editKey })
+    setErrors({})
+  }
   const headingRef = useRef<HTMLHeadingElement>(null)
   const dateRef = useRef<HTMLInputElement>(null)
   const typeRef = useRef<HTMLSelectElement>(null)
@@ -48,7 +56,6 @@ export default function EntryForm({
   // 編集開始時はフォームへスクロールし、見出しへフォーカスする。
   // 入力値ではなく編集開始の識別子（editKey）に依存させ、入力のたびに再実行しない。
   useEffect(() => {
-    setErrors({})
     if (mode !== 'edit') return
     const heading = headingRef.current
     if (!heading) return

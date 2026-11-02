@@ -94,7 +94,7 @@ Codex 向けの作業ルール。共通の開発フローとテンプレート�
   - infra: `node --test 'infra/tests/**/*.test.mjs'`、`terraform -chdir=infra test`
 - lint / format:
   - API: `docker compose run --rm --no-deps api dotnet format Kakeibo.slnx --verify-no-changes`
-  - フロントエンド: lint は未導入（Issue B で ESLint を導入予定）
+  - フロントエンド: `docker compose run --rm --no-deps frontend sh -c "npm ci && npm run lint"`
   - infra: `terraform -chdir=infra fmt -check -recursive`
 - 型チェック:
   - フロントエンド: `docker compose run --rm --no-deps frontend sh -c "npm ci && npx tsc --noEmit"`
