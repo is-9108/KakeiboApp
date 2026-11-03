@@ -1,0 +1,254 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: デプロイ対象を確認する
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    outputs:
+      is_latest: ${{ steps.latest.outputs.is_latest }}
+    steps:
+      - name: 最新の main と比較する
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          latest_sha=$(gh api "repos/$REPOSITORY/commits/main" --jq .sha)
+          if [ "$HEAD_SHA" = "$latest_sha" ]; then
+            echo 'is_latest=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'is_latest=false' >> "$GITHUB_OUTPUT"
+            echo '::notice::新しいコミットがあるためデプロイしません。'
+          fi
+
+  deploy:
+    name: 本番へデプロイする
+    needs: gate
+    if: needs.gate.outputs.is_latest == 'true'
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      TF_IN_AUTOMATION: 'true'
+      TF_INPUT: 'false'
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_name_prefix: ${{ vars.NAME_PREFIX }}
+      TF_VAR_database_secret_arn: ${{ vars.DATABASE_SECRET_ARN }}
+      TF_VAR_cognito_region: ${{ vars.COGNITO_REGION }}
+      TF_VAR_cognito_user_pool_id: ${{ vars.COGNITO_USER_POOL_ID }}
+      TF_VAR_cognito_app_client_id: ${{ vars.COGNITO_APP_CLIENT_ID }}
+    steps:
+      - name: 承認後に最新の main と再比較する
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          latest_sha=$(gh api "repos/$REPOSITORY/commits/main" --jq .sha)
+          if [ "$HEAD_SHA" = "$latest_sha" ]; then
+            echo 'is_latest=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'is_latest=false' >> "$GITHUB_OUTPUT"
+            echo '::notice::新しいコミットがあるためデプロイしません。'
+          fi
+
+      - name: CI が成功したコミットを取得する
+        if: steps.latest.outputs.is_latest == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: 必須の Variables と Secret を確認する
+        if: steps.latest.outputs.is_latest == 'true'
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+          TF_STATE_REGION: ${{ vars.TF_STATE_REGION }}
+          NAME_PREFIX: ${{ vars.NAME_PREFIX }}
+          DATABASE_SECRET_ARN: ${{ vars.DATABASE_SECRET_ARN }}
+          COGNITO_REGION: ${{ vars.COGNITO_REGION }}
+          COGNITO_USER_POOL_ID: ${{ vars.COGNITO_USER_POOL_ID }}
+          COGNITO_APP_CLIENT_ID: ${{ vars.COGNITO_APP_CLIENT_ID }}
+          NEON_DIRECT_HOST: ${{ vars.NEON_DIRECT_HOST }}
+          NEON_DATABASE: ${{ vars.NEON_DATABASE }}
+          NEON_MIGRATION_USER: ${{ vars.NEON_MIGRATION_USER }}
+          NEON_MIGRATION_PASSWORD: ${{ secrets.NEON_MIGRATION_PASSWORD }}
+        run: |
+          missing=0
+          for variable in AWS_REGION AWS_DEPLOY_ROLE_ARN \
+            TF_STATE_BUCKET TF_STATE_KEY TF_STATE_REGION NAME_PREFIX DATABASE_SECRET_ARN \
+            COGNITO_REGION COGNITO_USER_POOL_ID COGNITO_APP_CLIENT_ID \
+            NEON_DIRECT_HOST NEON_DATABASE NEON_MIGRATION_USER NEON_MIGRATION_PASSWORD; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::必須の設定 $variable が未登録または空です。"
+              missing=1
+            fi
+          done
+          test "$missing" -eq 0
+
+      - name: .NET SDK をセットアップする
+        if: steps.latest.outputs.is_latest == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Node.js をセットアップする
+        if: steps.latest.outputs.is_latest == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Terraform をセットアップする
+        if: steps.latest.outputs.is_latest == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.17.1'
+          terraform_wrapper: false
+
+      - name: PostgreSQL クライアントを確認する
+        if: steps.latest.outputs.is_latest == 'true'
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+          version=$(psql --version | awk '{print $3}')
+          if [ "${version%%.*}" -lt 16 ]; then
+            echo '::error::TLS のシステム証明書を使うには psql 16 以上が必要です。'
+            exit 1
+          fi
+
+      - name: OIDC で AWS のデプロイロールを引き受ける
+        if: steps.latest.outputs.is_latest == 'true'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: kakeibo-deploy-${{ github.run_id }}
+
+      - name: マイグレーション SQL を生成する
+        if: steps.latest.outputs.is_latest == 'true'
+        run: ./infra/scripts/generate-migration-sql.sh
+
+      - name: マイグレーションを Neon に適用する
+        if: steps.latest.outputs.is_latest == 'true'
+        env:
+          PGHOST: ${{ vars.NEON_DIRECT_HOST }}
+          PGPORT: '5432'
+          PGDATABASE: ${{ vars.NEON_DATABASE }}
+          PGUSER: ${{ vars.NEON_MIGRATION_USER }}
+          PGPASSWORD: ${{ secrets.NEON_MIGRATION_PASSWORD }}
+          PGSSLMODE: verify-full
+          PGSSLROOTCERT: system
+        run: psql -v ON_ERROR_STOP=1 -f .artifacts/migrations/migrate.sql
+
+      - name: Lambda パッケージを作成する
+        if: steps.latest.outputs.is_latest == 'true'
+        run: ./infra/scripts/package-api.sh
+
+      - name: Terraform の backend を初期化する
+        if: steps.latest.outputs.is_latest == 'true'
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+          TF_STATE_REGION: ${{ vars.TF_STATE_REGION }}
+        run: |
+          terraform -chdir=infra init \
+            -backend-config="bucket=$TF_STATE_BUCKET" \
+            -backend-config="key=$TF_STATE_KEY" \
+            -backend-config="region=$TF_STATE_REGION"
+
+      - name: Terraform の plan を保存する
+        if: steps.latest.outputs.is_latest == 'true'
+        run: |
+          umask 077
+          terraform -chdir=infra plan -out="$RUNNER_TEMP/kakeibo.tfplan"
+
+      - name: 保存した同じ plan を適用して削除する
+        if: steps.latest.outputs.is_latest == 'true'
+        run: |
+          trap 'rm -f "$RUNNER_TEMP/kakeibo.tfplan"' EXIT
+          terraform -chdir=infra apply "$RUNNER_TEMP/kakeibo.tfplan"
+
+      - name: 配置先を取得する
+        if: steps.latest.outputs.is_latest == 'true'
+        id: destination
+        run: |
+          bucket=$(terraform -chdir=infra output -raw site_bucket_name)
+          distribution=$(terraform -chdir=infra output -raw distribution_id)
+          echo "site_bucket_name=$bucket" >> "$GITHUB_OUTPUT"
+          echo "distribution_id=$distribution" >> "$GITHUB_OUTPUT"
+
+      - name: Cognito 設定付きフロントエンドをビルドする
+        if: steps.latest.outputs.is_latest == 'true'
+        working-directory: frontend
+        env:
+          VITE_COGNITO_REGION: ${{ vars.COGNITO_REGION }}
+          VITE_COGNITO_USER_POOL_ID: ${{ vars.COGNITO_USER_POOL_ID }}
+          VITE_COGNITO_APP_CLIENT_ID: ${{ vars.COGNITO_APP_CLIENT_ID }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: フロント成果物に DB 接続情報がないことを確認する
+        if: steps.latest.outputs.is_latest == 'true'
+        run: |
+          # 一致した内容は秘密情報の可能性があるため表示しない。
+          status=0
+          grep -R -E -q 'Npgsql|Database=|SSL Mode=|neon\.tech|Username=kakeibo' frontend/dist || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo '::error::フロント成果物に想定外の DB 接続情報候補があります。'
+            exit 1
+          elif [ "$status" -ne 1 ]; then
+            echo '::error::フロント成果物を検査できませんでした。'
+            exit "$status"
+          fi
+
+      - name: アセットから順に S3 へ配置する
+        if: steps.latest.outputs.is_latest == 'true'
+        env:
+          BUCKET: ${{ steps.destination.outputs.site_bucket_name }}
+        run: |
+          aws s3 sync frontend/dist/assets "s3://$BUCKET/assets" \
+            --cache-control "public,max-age=31536000,immutable"
+          aws s3 sync frontend/dist "s3://$BUCKET" \
+            --exclude "index.html" --exclude "assets/*"
+          aws s3 cp frontend/dist/index.html "s3://$BUCKET/index.html" \
+            --cache-control "no-cache,max-age=0"
+
+      - name: CloudFront のキャッシュを更新する
+        if: steps.latest.outputs.is_latest == 'true'
+        env:
+          DIST_ID: ${{ steps.destination.outputs.distribution_id }}
+        run: aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
