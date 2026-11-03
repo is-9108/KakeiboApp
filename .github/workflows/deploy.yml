@@ -149,6 +149,10 @@ jobs:
             exit 1
           fi
 
+      - name: API の依存パッケージを復元する
+        if: steps.latest.outputs.is_latest == 'true'
+        run: dotnet restore api/Kakeibo.Api.csproj
+
       - name: OIDC で AWS のデプロイロールを引き受ける
         if: steps.latest.outputs.is_latest == 'true'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0

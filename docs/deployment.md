@@ -942,7 +942,7 @@ CD の設定（15章）:
 2. CI が成功すると `Deploy` が起動します。同じリポジトリの main への push が起点の CI だけが対象です。
 3. `gate` が CI の `head_sha` と現在の main の先頭を比較します。古いコミットなら通知を出して成功終了し、デプロイをスキップします。
 4. GitHub Environment `production` の承認を待ちます。
-5. 承認後、deploy ジョブの先頭で CI の `head_sha` と現在の main の先頭を再比較します。古ければ通知を出して成功終了し、checkout・AWS 認証を含む後続ステップをすべてスキップします。最新の場合だけ、CI が成功したコミットを checkout し、全13個の Variables と1個の Secret が空でないことを AWS 認証より前に確認します。不足があれば、値は表示せず設定名だけを通知して停止します。その後、マイグレーション → Lambda パッケージ・Terraform plan・同じ plan の apply → フロントのビルド・検査・S3 配置・CloudFront 無効化を、1つのジョブで実行します。
+5. 承認後、deploy ジョブの先頭で CI の `head_sha` と現在の main の先頭を再比較します。古ければ通知を出して成功終了し、checkout・AWS 認証を含む後続ステップをすべてスキップします。最新の場合だけ、CI が成功したコミットを checkout し、全13個の Variables と1個の Secret が空でないことを AWS 認証より前に確認します。不足があれば、値は表示せず設定名だけを通知して停止します。マイグレーション SQL の生成（`dotnet ef migrations script`）は restore 済みのプロジェクトを前提にしているため、AWS の認証の前に API の依存パッケージを restore します。その後、マイグレーション → Lambda パッケージ・Terraform plan・同じ plan の apply → フロントのビルド・検査・S3 配置・CloudFront 無効化を、1つのジョブで実行します。
 
 途中で失敗すると、それ以降の手順は実行されません。自動ロールバックはありません。承認は plan 作成前の1回です。apply 前に plan の差分を見て止める承認段階はありません。state・plan・ZIP・SQL は artifact としてアップロードしません。保存 plan はランナーの一時領域に権限を限定して作成し、apply の終了時に削除します。
 
@@ -974,14 +974,23 @@ IAM の **Roles → Create role → Web identity** で上記プロバイダー�
     "Condition": {
       "StringEquals": {
         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-        "token.actions.githubusercontent.com:sub": "repo:is-9108/KakeiboApp:environment:production"
+        "token.actions.githubusercontent.com:sub": "repo:is-9108@60906819/KakeiboApp@1416200780:environment:production"
       }
     }
   }]
 }
 ```
 
-`sub` は完全一致にし、リポジトリ全体のワイルドカードを使いません。通常のブランチ・PR の subject は一致しません。Environment を使うジョブの subject はブランチ名を含まないため、次項の Environment の main 制限と併用します。リポジトリで OIDC subject のカスタマイズを有効にしている場合は、この例との一致を設定時に確認してください。
+このリポジトリは、ID を含む subject の形式（immutable subject）を使っています。形式は `repo:<owner>@<owner_id>/<repo>@<repo_id>:environment:<environment>` です。設定時に、次のコマンドで subject の形式を確かめてください。
+
+```bash
+gh api repos/is-9108/KakeiboApp/actions/oidc/customization/sub
+```
+
+- `use_immutable_subject` が `true` の場合は、ID を含む形式になります。`sub_claim_prefix` には `:environment:production` より前の部分（`repo:is-9108@60906819/KakeiboApp@1416200780`）が表示されます。これに `:environment:production` を付けた値を、信頼ポリシーに設定します。
+- `use_immutable_subject` が `false` の場合は、ID を含まない形式（`repo:is-9108/KakeiboApp:environment:production`）になります。
+
+値が一致しない場合は、`configure-aws-credentials` のステップが `Not authorized to perform sts:AssumeRoleWithWebIdentity` などのエラーで失敗します。`sub` は完全一致にし、リポジトリ全体のワイルドカードを使いません。通常のブランチ・PR の subject は一致しません。Environment を使うジョブの subject はブランチ名を含まないため、次項の Environment の main 制限と併用します。
 
 次の権限ポリシー例を、ロールのインラインポリシーとして登録します。すべての `<...>` を実環境に置き換えてください。`<STATE_KEY>` は state オブジェクトのキー、`<API_ID>`・`<DISTRIBUTION_ID>`・`<OAC_ID>` は初回構築済みリソースの ID、`<DATABASE_SECRET_ARN>` は Secret の完全な ARN です。state バケットとアプリ用バケットを混同しないでください。
 
@@ -1036,7 +1045,6 @@ IAM の **Roles → Create role → Web identity** で上記プロバイダー�
         "s3:PutBucketPublicAccessBlock",
         "s3:PutEncryptionConfiguration",
         "s3:PutBucketOwnershipControls",
-        "s3:DeleteBucketOwnershipControls",
         "s3:PutBucketTagging"
       ],
       "Resource": [
@@ -1187,7 +1195,6 @@ IAM の **Roles → Create role → Web identity** で上記プロバイダー�
       "Effect": "Allow",
       "Action": [
         "cloudfront:CreateDistribution",
-        "cloudfront:CreateDistributionWithTags",
         "cloudfront:CreateFunction",
         "cloudfront:CreateOriginAccessControl",
         "cloudfront:ListDistributions",
@@ -1226,7 +1233,9 @@ IAM の **Roles → Create role → Web identity** で上記プロバイダー�
 
 この例は2章の権限を構成に合わせて限定したものです。CloudFront の作成・一覧はリソースを限定できない操作を含むため `Resource: "*"` にしています。API Gateway のタグ ARN はリソース ARN をエンコードして含むため、リージョン内の `/tags/*` を許可しています。バケットの Get、Lambda・IAM の Get/List は Terraform の refresh にも使います。state を SSE-KMS にしている場合は、対象キーの KMS 権限も別途必要です。
 
-このポリシー例は実 AWS では未検証です。初回デプロイで AccessDenied が発生した場合は、対象アクションと ARN を確認し、必要な範囲だけポリシーと本書を更新してください。API・Distribution・OAC を置換すると ID が変わるため、置換の際は対象 ARN の見直しが必要です。Secret の値や Lambda 環境設定を読み取れる権限を含むため、ロールの引受先を広げないでください。
+`DeleteBucketOwnershipControls` の API は `s3:PutBucketOwnershipControls` で、`CreateDistributionWithTags` の API は `cloudfront:CreateDistribution` と `cloudfront:TagResource` で許可されるため、API と同じ名前のアクションはポリシーに書きません。
+
+このポリシー例は実 AWS では未検証です。初回デプロイで AccessDenied が発生した場合は、対象アクションと ARN を確認し、必要な範囲だけポリシーと本書を更新してください。API・Distribution・OAC を置換すると ID が変わるため、置換の際は対象 ARN の見直しが必要です。Distribution を作り直す場合は、新しい Distribution の ARN に対しても `cloudfront:TagResource` が必要です。Secret の値や Lambda 環境設定を読み取れる権限を含むため、ロールの引受先を広げないでください。
 
 ### GitHub Environment `production`
 
