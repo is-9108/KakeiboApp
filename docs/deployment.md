@@ -1,6 +1,6 @@
 # AWS へのデプロイ手順
 
-issue #7「AWSへのデプロイ」の本番構築・更新・検証手順です。実装側は IaC（`infra/` の Terraform）、パッケージ作成・SQL 生成スクリプト、この手順書を用意します。**AWS・Neon・Cognito の実リソース作成、Terraform の plan／apply、デプロイ、S3 配置、実環境確認はユーザーが実施します。** このリポジトリの CI は AWS 認証情報を使わず、Terraform の fmt／validate／mock test までを検証します。
+初回構築は Issue #7 の手動手順で行い、更新は Issue #25 の GitHub Actions CD で自動化します。main へのマージ後、同じコミットの CI が成功し、人間が production Environment で承認すると、マイグレーション・Terraform plan/apply・フロントの配置を実行します。初回の AWS・Neon・Cognito の構築、IAM/OIDC の作成、GitHub の設定、実環境確認はユーザーが実施します。CI は AWS 認証情報を使いません。デプロイのワークフローだけが OIDC で AWS に認証します。設定と運用は15章を参照してください。
 
 ## 1. 責任分界、構成、費用の発生箇所
 
@@ -12,13 +12,14 @@ issue #7「AWSへのデプロイ」の本番構築・更新・検証手順です
 | Cognito User Pool / App Client の作成・設定 | ユーザー |
 | Neon プロジェクト・DB・ロールの作成 | ユーザー |
 | Secrets Manager シークレットの作成・更新 | ユーザー |
-| マイグレーション SQL の確認・適用 | ユーザー |
+| マイグレーション SQL の確認・適用 | 初回はユーザー、更新時は人間の承認後に CD が生成・適用 |
 | **state 用 S3 バケットの bootstrap** | ユーザー |
-| **Terraform の plan 作成・差分確認・apply** | ユーザー |
-| フロントエンドのビルド・S3 配置・キャッシュ更新 | ユーザー |
+| **Terraform の plan 作成・apply** | 初回はユーザー、更新時は人間の承認後に CD（承認は plan 作成前） |
+| フロントエンドのビルド・S3 配置・キャッシュ更新 | 初回はユーザー、更新時は人間の承認後に CD |
+| IAM/OIDC の作成・GitHub Environment と Variables / Secrets の設定 | ユーザー |
 | 実環境の受け入れ確認（R1〜R5） | ユーザー |
 
-Terraform は CloudFormation スタックを使いません。実 AWS への `terraform plan`／`apply` はユーザーが実施し、実装側・CI は行いません。
+Terraform は CloudFormation スタックを使いません。初回の実 AWS への `terraform plan`／`apply` はユーザーが実施し、更新時は承認後に CD が行います。実装作業中と CI の検証では実 AWS への plan／apply は行いません。
 
 > 既存の SAM スタックが実アカウントに残っている場合は、同じリソースを二重管理しないでください。CloudFormation の管理解除や Terraform への import は別途の移行計画が必要です。この手順書は新規構築を前提にしています。
 
@@ -37,7 +38,7 @@ Terraform は CloudFormation スタックを使いません。実 AWS への `te
 - API は同一 CloudFront オリジン配下の `/api` で提供するため、既存フロントの相対 URL を変更しません。CORS は追加しません。
 - API Gateway の JWT Authorizer は使わず、既存の ASP.NET Core Cognito 認証で検証します。
 - Lambda は `provided.al2023`、`linux-x64` の自己完結 ZIP、`bootstrap` 実行ファイルです。通常のローカル実行（Kestrel）は従来どおりです。
-- Lambda の起動時マイグレーションは本番では無効です。スキーマは手動適用した SQL で管理します。
+- Lambda の起動時マイグレーションは本番では無効です。スキーマは CD または手動で明示適用した SQL で管理します。
 - Terraform の state は、ユーザーが事前作成する S3 バケットに保存し、S3 native lockfile でロックします（DynamoDB は使いません）。
 - フロント用 S3 バケットは `prevent_destroy = true` と `force_destroy = false` で保護します。通常の `terraform destroy` では削除されません。
 
@@ -657,6 +658,8 @@ curl -i "https://$BUCKET.s3.ap-northeast-1.amazonaws.com/index.html"
 
 ## 11. アプリ更新と Secret 更新時の反映
 
+main へのマージ後の通常の更新は、15章の CD が行います。この章の手動手順は、初回構築と障害時の代替として使用します。CD と手動の更新を同時に実行しないでください。手動で作業する際は、承認待ちを含む Deploy の状況を確認し、作業中に CD を承認・再実行しないでください。
+
 ### 更新前の退避（旧版の保持）
 
 コード配布用 S3 の key には ZIP の内容ハッシュが含まれます。更新時は新しい key のオブジェクトへ切り替わり、Terraform が管理していた旧 key のオブジェクトは削除されます。**S3 上のオブジェクトは旧版の控えになりません。** 更新前に、現行の ZIP と対応するコード・設定を、追跡対象外の `.artifacts/releases/` へ `umask 077` で退避します。
@@ -747,7 +750,8 @@ Secret を更新しただけでは Lambda の環境変数は変わりません�
 Terraform には CloudFormation の `rollback-stack` に相当する自動ロールバックはありません。
 
 - **apply が失敗した場合**：エラーと state を確認し、原因を修正して新しい plan／apply を行います。失敗した plan をそのまま再実行しないでください。
-- **成功済みのアプリを戻す場合**：`.artifacts/releases/` に退避した ZIP と `git-revision.txt` のコード、対応する設定で plan／apply します。旧コミットから作り直す場合も、同じ旧設定と組み合わせます。
+- **成功済みのアプリを戻す場合**：CD で配置した版は、15章のとおり revert コミットを PR から main にマージし、CI と承認を経て再デプロイして戻します。CD は `.artifacts/releases/` への退避を行いません。以下の手動復旧は、手動で更新し、退避物がある場合に使います。CD と同時に実行しないでください。
+  - `.artifacts/releases/` に退避した ZIP と `git-revision.txt` のコード、対応する設定で plan／apply します。旧コミットから作り直す場合も、同じ旧設定と組み合わせます。
   - **コード配布用 S3 の旧オブジェクトは、Terraform が管理する key の切り替えで削除されます。** 旧 ZIP の保持先は S3 ではなく、更新前に取得した `.artifacts/releases/` の退避物です。S3 に旧 ZIP が残っていても、それだけでは旧構成の復旧を保証しません。Terraform 設定・環境変数・フロント成果物も揃えます。
   - フロントは旧 `frontend/dist` を同じ順序で再配置し、`/*` を無効化します。
 - **tfstate の過去バージョンの復元は、アプリのロールバック手順にしないでください。** state にはリソースの対応関係が記録されており、安易な復元はリソースの重複作成・誤削除につながります。state の復元は、Terraform 管理情報の災害復旧として、影響を確認したうえで行います。
@@ -874,6 +878,17 @@ removed {
 
 ## 14. 実施結果チェックリスト
 
+CD の設定（15章）:
+
+- [ ] GitHub 用 OIDC プロバイダーと audience を設定した
+- [ ] デプロイ用 IAM ロールの信頼ポリシーを production の subject に限定した
+- [ ] production の Required reviewers と main だけの Deployment branches を設定した
+- [ ] production に Variables / Secrets をすべて登録した
+- [ ] 初回の Deploy が承認待ちになり、承認後に成功した
+- [ ] 初回デプロイのログに秘密情報が出ていないことと、10章のアプリ動作を確認した
+
+手動構築・復旧を含む確認:
+
 - [ ] Cognito の自己登録が無効、SPA 用 App Client がシークレットなし・SRP 許可
 - [ ] 管理者ユーザーを作成した
 - [ ] Neon の direct / pooled endpoint を区別した
@@ -916,3 +931,377 @@ removed {
 - [ ] 実施結果と未確認事項をレビュー記録へ分離して残した
 
 実環境の R1〜R5 を確認するまで、issue の本番受入条件は達成済みとして扱いません。
+
+## 15. GitHub Actions による自動デプロイ（CD）
+
+### 流れと事前準備
+
+初回構築は3〜9章の手動手順で済ませます。AWS の本番リソース、state バケット、Secrets Manager、Neon、Cognito が存在し、以下の OIDC・IAM・GitHub 設定が完了してから、このワークフローを main にマージしてください。IAM ロールと OIDC プロバイダーは Terraform の管理対象外です。
+
+1. main への push（PR のマージ）で CI のすべてのジョブを実行します。
+2. CI が成功すると `Deploy` が起動します。同じリポジトリの main への push が起点の CI だけが対象です。
+3. `gate` が CI の `head_sha` と現在の main の先頭を比較します。古いコミットなら通知を出して成功終了し、デプロイをスキップします。
+4. GitHub Environment `production` の承認を待ちます。
+5. 承認後、deploy ジョブの先頭で CI の `head_sha` と現在の main の先頭を再比較します。古ければ通知を出して成功終了し、checkout・AWS 認証を含む後続ステップをすべてスキップします。最新の場合だけ、CI が成功したコミットを checkout し、全13個の Variables と1個の Secret が空でないことを AWS 認証より前に確認します。不足があれば、値は表示せず設定名だけを通知して停止します。その後、マイグレーション → Lambda パッケージ・Terraform plan・同じ plan の apply → フロントのビルド・検査・S3 配置・CloudFront 無効化を、1つのジョブで実行します。
+
+途中で失敗すると、それ以降の手順は実行されません。自動ロールバックはありません。承認は plan 作成前の1回です。apply 前に plan の差分を見て止める承認段階はありません。state・plan・ZIP・SQL は artifact としてアップロードしません。保存 plan はランナーの一時領域に権限を限定して作成し、apply の終了時に削除します。
+
+`deploy.yml` は main に入って初めて `workflow_run` が有効になります。PR では実際のデプロイは検証できません。CI は従来どおり、PR では変更箇所のジョブだけ、main への push では全ジョブを実行します。actionlint は常に実行し、`CI 結果` の判定にも含めます。
+
+### IAM の OIDC プロバイダー
+
+AWS コンソールの **IAM → Identity providers → Add provider** で次を登録します。既存の同じプロバイダーがある場合は再利用します。
+
+- Provider type: OpenID Connect
+- Provider URL: `https://token.actions.githubusercontent.com`
+- Audience: `sts.amazonaws.com`
+
+登録後の ARN は `arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com` です。長期のアクセスキーを GitHub に登録する必要はありません。[GitHub の公式手順](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws)も参照してください。
+
+### デプロイ用 IAM ロール
+
+IAM の **Roles → Create role → Web identity** で上記プロバイダーと audience を選び、例として `kakeibo-github-deploy` を作成します。信頼ポリシーを次の JSON に設定します。`<ACCOUNT_ID>` は自分の AWS アカウント ID に置き換えます。
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
+    },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+        "token.actions.githubusercontent.com:sub": "repo:is-9108/KakeiboApp:environment:production"
+      }
+    }
+  }]
+}
+```
+
+`sub` は完全一致にし、リポジトリ全体のワイルドカードを使いません。通常のブランチ・PR の subject は一致しません。Environment を使うジョブの subject はブランチ名を含まないため、次項の Environment の main 制限と併用します。リポジトリで OIDC subject のカスタマイズを有効にしている場合は、この例との一致を設定時に確認してください。
+
+次の権限ポリシー例を、ロールのインラインポリシーとして登録します。すべての `<...>` を実環境に置き換えてください。`<STATE_KEY>` は state オブジェクトのキー、`<API_ID>`・`<DISTRIBUTION_ID>`・`<OAC_ID>` は初回構築済みリソースの ID、`<DATABASE_SECRET_ARN>` は Secret の完全な ARN です。state バケットとアプリ用バケットを混同しないでください。
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "StateBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:GetBucketVersioning"
+      ],
+      "Resource": "arn:aws:s3:::<STATE_BUCKET>"
+    },
+    {
+      "Sid": "StateObject",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::<STATE_BUCKET>/<STATE_KEY>"
+    },
+    {
+      "Sid": "StateLock",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": "arn:aws:s3:::<STATE_BUCKET>/<STATE_KEY>.tflock"
+    },
+    {
+      "Sid": "AppBuckets",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:ListBucket",
+        "s3:GetBucket*",
+        "s3:GetAccelerateConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetReplicationConfiguration",
+        "s3:ListBucketMultipartUploads",
+        "s3:PutBucketPolicy",
+        "s3:DeleteBucketPolicy",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutBucketOwnershipControls",
+        "s3:DeleteBucketOwnershipControls",
+        "s3:PutBucketTagging"
+      ],
+      "Resource": [
+        "arn:aws:s3:::<NAME_PREFIX>-site-*",
+        "arn:aws:s3:::<NAME_PREFIX>-artifacts-*"
+      ]
+    },
+    {
+      "Sid": "AppObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:GetObjectVersion",
+        "s3:GetObjectAttributes",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:GetObjectTagging",
+        "s3:PutObjectTagging",
+        "s3:DeleteObjectTagging",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": [
+        "arn:aws:s3:::<NAME_PREFIX>-site-*/*",
+        "arn:aws:s3:::<NAME_PREFIX>-artifacts-*/*"
+      ]
+    },
+    {
+      "Sid": "ApiLambda",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:GetPolicy",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:GetFunctionConcurrency",
+        "lambda:GetRuntimeManagementConfig",
+        "lambda:ListVersionsByFunction",
+        "lambda:ListTags",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:DeleteFunction",
+        "lambda:AddPermission",
+        "lambda:RemovePermission",
+        "lambda:TagResource",
+        "lambda:UntagResource"
+      ],
+      "Resource": "arn:aws:lambda:<REGION>:<ACCOUNT_ID>:function:<NAME_PREFIX>-api"
+    },
+    {
+      "Sid": "LambdaRole",
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:UpdateRole",
+        "iam:DeleteRole",
+        "iam:ListRolePolicies",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole",
+        "iam:ListRoleTags",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-api-lambda"
+    },
+    {
+      "Sid": "LambdaLoggingPolicy",
+      "Effect": "Allow",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-api-lambda",
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        }
+      }
+    },
+    {
+      "Sid": "PassLambdaRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-api-lambda",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Sid": "ApiGateway",
+      "Effect": "Allow",
+      "Action": [
+        "apigateway:GET",
+        "apigateway:POST",
+        "apigateway:PUT",
+        "apigateway:PATCH",
+        "apigateway:DELETE"
+      ],
+      "Resource": [
+        "arn:aws:apigateway:<REGION>::/apis/<API_ID>",
+        "arn:aws:apigateway:<REGION>::/apis/<API_ID>/*",
+        "arn:aws:apigateway:<REGION>::/tags/*"
+      ]
+    },
+    {
+      "Sid": "CreateApi",
+      "Effect": "Allow",
+      "Action": "apigateway:POST",
+      "Resource": "arn:aws:apigateway:<REGION>::/apis"
+    },
+    {
+      "Sid": "CloudFrontResources",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:UpdateDistribution",
+        "cloudfront:DeleteDistribution",
+        "cloudfront:CreateInvalidation",
+        "cloudfront:GetInvalidation",
+        "cloudfront:GetFunction",
+        "cloudfront:DescribeFunction",
+        "cloudfront:UpdateFunction",
+        "cloudfront:PublishFunction",
+        "cloudfront:DeleteFunction",
+        "cloudfront:GetOriginAccessControl",
+        "cloudfront:GetOriginAccessControlConfig",
+        "cloudfront:UpdateOriginAccessControl",
+        "cloudfront:DeleteOriginAccessControl",
+        "cloudfront:ListTagsForResource",
+        "cloudfront:TagResource",
+        "cloudfront:UntagResource"
+      ],
+      "Resource": [
+        "arn:aws:cloudfront::<ACCOUNT_ID>:distribution/<DISTRIBUTION_ID>",
+        "arn:aws:cloudfront::<ACCOUNT_ID>:function/<NAME_PREFIX>-spa-rewrite",
+        "arn:aws:cloudfront::<ACCOUNT_ID>:origin-access-control/<OAC_ID>"
+      ]
+    },
+    {
+      "Sid": "CloudFrontCreateAndList",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateDistribution",
+        "cloudfront:CreateDistributionWithTags",
+        "cloudfront:CreateFunction",
+        "cloudfront:CreateOriginAccessControl",
+        "cloudfront:ListDistributions",
+        "cloudfront:ListFunctions",
+        "cloudfront:ListOriginAccessControls"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DatabaseSecret",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Resource": "<DATABASE_SECRET_ARN>"
+    },
+    {
+      "Sid": "ReadLogs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogStreams",
+        "logs:GetLogEvents",
+        "logs:FilterLogEvents"
+      ],
+      "Resource": "arn:aws:logs:<REGION>:<ACCOUNT_ID>:log-group:/aws/lambda/<NAME_PREFIX>-api:*"
+    },
+    {
+      "Sid": "CallerIdentity",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+この例は2章の権限を構成に合わせて限定したものです。CloudFront の作成・一覧はリソースを限定できない操作を含むため `Resource: "*"` にしています。API Gateway のタグ ARN はリソース ARN をエンコードして含むため、リージョン内の `/tags/*` を許可しています。バケットの Get、Lambda・IAM の Get/List は Terraform の refresh にも使います。state を SSE-KMS にしている場合は、対象キーの KMS 権限も別途必要です。
+
+このポリシー例は実 AWS では未検証です。初回デプロイで AccessDenied が発生した場合は、対象アクションと ARN を確認し、必要な範囲だけポリシーと本書を更新してください。API・Distribution・OAC を置換すると ID が変わるため、置換の際は対象 ARN の見直しが必要です。Secret の値や Lambda 環境設定を読み取れる権限を含むため、ロールの引受先を広げないでください。
+
+### GitHub Environment `production`
+
+リポジトリの **Settings → Environments → New environment** で `production` を作成します。
+
+1. **Required reviewers** に自分を設定します。個人運用で自分のデプロイを承認できるよう、**Prevent self-review は有効にしません**。
+2. **Deployment branches and tags** を Selected branches and tags にし、branch `main` だけを許可します。全ブランチの許可やタグの許可は追加しません。
+3. 以下の Variables / Secrets を、すべて Environment `production` に登録します。リポジトリ単位の設定と取り違えないでください。
+
+利用中の GitHub プラン・リポジトリの公開範囲で Required reviewers が利用できることを確認し、承認を必須にしてからマージします。
+
+| 名前 | 種別 | 用途 | 例 | 秘密か |
+|---|---|---|---|---|
+| `AWS_REGION` | Variable | アプリの AWS リージョン | `ap-northeast-1` | いいえ |
+| `AWS_DEPLOY_ROLE_ARN` | Variable | 上で作成したデプロイロール | `arn:aws:iam::<ACCOUNT_ID>:role/kakeibo-github-deploy` | いいえ |
+| `TF_STATE_BUCKET` | Variable | 既存 state バケット名 | `kakeibo-terraform-state-<account-id>` | いいえ |
+| `TF_STATE_KEY` | Variable | state のキー | `kakeibo/terraform.tfstate` | いいえ |
+| `TF_STATE_REGION` | Variable | state バケットのリージョン | `ap-northeast-1` | いいえ |
+| `NAME_PREFIX` | Variable | 既存 Terraform と同じ接頭辞 | `kakeibo` | いいえ |
+| `DATABASE_SECRET_ARN` | Variable | API 用接続文字列を格納した既存 Secret | `arn:aws:secretsmanager:<REGION>:<ACCOUNT_ID>:secret:<SECRET_NAME>` | いいえ（値は秘密） |
+| `COGNITO_REGION` | Variable | API・フロント共通の Cognito リージョン | `ap-northeast-1` | いいえ |
+| `COGNITO_USER_POOL_ID` | Variable | 既存 User Pool ID | `ap-northeast-1_xxxxxxxxx` | いいえ |
+| `COGNITO_APP_CLIENT_ID` | Variable | シークレットなしの SPA App Client | `xxxxxxxxxxxxxxxxxxxxxxxxxx` | いいえ |
+| `NEON_DIRECT_HOST` | Variable | マイグレーション用 direct endpoint | `ep-example.ap-southeast-1.aws.neon.tech` | いいえ |
+| `NEON_DATABASE` | Variable | 対象 DB | `kakeibo` | いいえ |
+| `NEON_MIGRATION_USER` | Variable | 4章の既定権限を設定した所有者ロール | 6章の `<owner_user>` と同じロール | いいえ |
+| `NEON_MIGRATION_PASSWORD` | Secret | マイグレーション用パスワード | 実値を Secret 入力欄だけに登録 | **はい** |
+
+例をそのまま登録せず、初回構築済みの値と一致させます。`TF_STATE_BUCKET`・`TF_STATE_KEY`・`TF_STATE_REGION` には、初回に使った `infra/backend.s3.hcl` と同じ値を登録します。別のキーを指定すると既存の state を参照できず、リソースを新規作成しようとするため、5章の設定と照合してください。API 用接続文字列は既存 Secrets Manager から Terraform が参照し、GitHub へ複製しません。マイグレーション用パスワードは事前検証ステップの環境変数と、`psql` ステップの `PGPASSWORD` にだけ渡します。事前検証では空でないことだけを確認し、値を表示しません。接続 URI をコマンド引数にしません。TLS は `verify-full` と `PGSSLROOTCERT=system` を使用し、psql 16 以上が必要です。フロント用 Cognito 設定はステップの環境変数からビルドし、`.env.production.local` は作成しません。
+
+`NEON_MIGRATION_USER` には、4章の `ALTER DEFAULT PRIVILEGES` を実行した所有者ロール（6章の `<owner_user>`）を使います。`FOR ROLE` を省略した既定権限は、その SQL を実行したロールが今後作成するオブジェクトだけに適用されます。CD は権限付与を行いません。初回に同じ所有者ロールで4章の既存テーブル・シーケンスへの権限付与と既定権限の設定を済ませてください。別の DDL ロールを登録すると、新しいテーブルに API 用ロールの権限が付かず、CD が成功しても API が permission denied になる場合があります。
+
+### 運用・失敗時の扱い
+
+- ワークフロー全体を固定の concurrency グループ `deploy-production` に入れ、実行中のデプロイをキャンセルしません。承認待ちもこの枠内です。GitHub の concurrency では pending の実行は1つだけで、さらに新しい実行が来ると pending が置き換えられます。CI の完了順が逆転すると、最新コミットの実行が古い実行に置き換わり、その古い実行も gate でスキップされる場合があります。ワークフロー全体の concurrency は gate の条件判定より前に適用されるため、CI が失敗した実行や、フォークの `main` ブランチからの PR による実行も pending を置き換えることがあります。これらの実行自体は gate でスキップされますが、置き換えられた正しいデプロイは復元されません。最新コミットが未デプロイなら、以下の Re-run all jobs で再実行します。
+- 承認前の gate と、承認後の deploy ジョブの先頭で最新 SHA を比較します。いずれかの比較時点で古ければデプロイしません。承認待ち中に main が進んだ場合も、承認後の再比較で古い実行を除外します。main の SHA の取得に失敗した場合はジョブを失敗させ、後続ステップを実行しません。
+- 承認待ちの実行 A が古くなった場合は、Actions の承認画面で **Reject** するか、承認して終了させます。承認しても最新 SHA の再比較でスキップされ、何も配置しません。A を承認待ちのまま放置すると concurrency の枠を占め続け、新しいコミット B の実行も pending のまま進みません。A が終了した後、B が進むと、B の deploy ジョブでもう一度承認が求められます。B の SHA を確認して承認してください。
+- 最新コミットがデプロイされなかった場合は、**Actions → Deploy → 対象コミットの実行 → Re-run all jobs** で再実行します。古い SHA の実行を再実行しても gate がスキップします。失敗した Deploy も Re-run all jobs で再実行します。Re-run failed jobs は成功済みの gate を再実行せず出力を再利用しますが、deploy の先頭で必ず再比較するため、古いコミットの配置は行いません。CI が失敗している場合は、先に CI の原因を修正します。
+- マイグレーション成功後に apply が失敗すると、DB だけが先に進んだ状態になります。マイグレーションは後方互換のある forward-only にし、旧 API も動作できるようにします。再実行では冪等な SQL を再適用します。
+- CD は11章の「更新前の退避（`.artifacts/releases/`）」を行いません。戻す場合は revert コミットを PR から main にマージし、CI と承認を経て再デプロイします。DB を自動で巻き戻すことはできません。
+- 6〜9章の手動手順は初回構築と障害時の代替として残します。CD と手動 apply を同時に実行しないでください。
+- 初回は承認待ちになること、ログに秘密情報が出ないこと、全ステップの成功を人間が確認し、10章の `/health`・ログイン・一覧・登録を検証します。自動のスモークテストはこの CD に含みません。
+
+### タイムアウト・キャンセル後のロックと state の確認
+
+Terraform apply の途中で60分のタイムアウトやキャンセルが発生すると、S3 の `<STATE_KEY>.tflock` が残る場合があります。次の Deploy が `Error acquiring the state lock` で失敗するときは、以下の手順で確認します。ロック解除や本番への plan はユーザーが手元で行います。
+
+1. Actions と手動作業の状況を確認し、ほかの Deploy や手動の plan / apply が動いていないことを確かめます。承認待ちの Deploy も作業中に開始しないようにします。実行中の処理が使っているロックを解除しないでください。
+2. 手元で最新の main のコードを用意し、2章の AWS 認証と8章の入力値を設定します。`infra/backend.s3.hcl` の bucket・key・region が、production の Variables と同じ既存 state を指していることを確認します。確認用 plan に使う `infra/terraform.tfvars` または `TF_VAR_*` も、現在の production の Variables と同じ値にそろえます。初回構築時の手元の設定をそのまま使わず、次の6項目を照合してください。
+
+   | Terraform の入力変数（tfvars） | 環境変数で渡す場合 | production の Variable |
+   |---|---|---|
+   | `aws_region` | `TF_VAR_aws_region` | `AWS_REGION` |
+   | `name_prefix` | `TF_VAR_name_prefix` | `NAME_PREFIX` |
+   | `database_secret_arn` | `TF_VAR_database_secret_arn` | `DATABASE_SECRET_ARN` |
+   | `cognito_region` | `TF_VAR_cognito_region` | `COGNITO_REGION` |
+   | `cognito_user_pool_id` | `TF_VAR_cognito_user_pool_id` | `COGNITO_USER_POOL_ID` |
+   | `cognito_app_client_id` | `TF_VAR_cognito_app_client_id` | `COGNITO_APP_CLIENT_ID` |
+
+   tfvars と環境変数を併用している場合は、実際に適用される値が production と一致するよう、古い設定を残さないでください。入力値の違いによる差分を、タイムアウトによる state と実リソースの食い違いと取り違えないようにします。
+3. リポジトリルートから backend を初期化し、エラーに表示された **Lock ID**（state キーやファイル名ではない）でロックを解除します。解除前にエラーのロック情報も確認し、停止した自分の処理のロックであることを確かめてください。
+
+   ```bash
+   terraform -chdir=infra init -backend-config=backend.s3.hcl
+   terraform -chdir=infra force-unlock '<LOCK_ID>'
+   ```
+
+   確認プロンプトの内容を確認してから解除します。自動解除や `-lock=false` による回避は行いません。[Terraform の公式手順](https://developer.hashicorp.com/terraform/cli/commands/force-unlock)も参照してください。
+
+4. 7章のスクリプトで最新の Lambda パッケージを用意し、新しい plan を作成します。
+
+   ```bash
+   ./infra/scripts/package-api.sh
+   terraform -chdir=infra plan
+   ```
+
+   state と実リソースの食い違い、作りかけのリソース、意図しない新規作成・置換・削除がないかを確認します。state の書き込み失敗時に生成される `errored.tfstate` は、使い捨ての CD ランナーから回収できるとは限りません。state に記録されていない実リソースがあれば、同名リソースを重複作成せず、必要な import などの復旧を判断してから進めてください。state や plan に秘密情報が含まれるため、内容を共有・アップロードしないでください。
+5. 食い違いを解消し、手動作業が終了した後に、最新コミットの Deploy を **Re-run all jobs** で再実行します。以前の保存 plan は再利用しません。

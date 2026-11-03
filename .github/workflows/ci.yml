@@ -163,9 +163,19 @@ jobs:
           npm run build
           rm -f .env.production.local
 
+  actionlint:
+    name: GitHub Actions の定義を検証する
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリを取得する
+        uses: actions/checkout@v4
+
+      - name: actionlint と shellcheck を実行する
+        run: docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -color
+
   ci-result:
     name: CI 結果
-    needs: [changes, frontend, api, infra]
+    needs: [changes, frontend, api, infra, actionlint]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -175,12 +185,14 @@ jobs:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           API_RESULT: ${{ needs.api.result }}
           INFRA_RESULT: ${{ needs.infra.result }}
+          ACTIONLINT_RESULT: ${{ needs.actionlint.result }}
         run: |
           echo "changes: $CHANGES_RESULT"
           echo "frontend: $FRONTEND_RESULT"
           echo "api: $API_RESULT"
           echo "infra: $INFRA_RESULT"
-          for result in "$CHANGES_RESULT" "$FRONTEND_RESULT" "$API_RESULT" "$INFRA_RESULT"; do
+          echo "actionlint: $ACTIONLINT_RESULT"
+          for result in "$CHANGES_RESULT" "$FRONTEND_RESULT" "$API_RESULT" "$INFRA_RESULT" "$ACTIONLINT_RESULT"; do
             case "$result" in
               failure|cancelled) exit 1 ;;
             esac
