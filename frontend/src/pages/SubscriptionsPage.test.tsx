@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import SubscriptionsPage from './SubscriptionsPage'
 import {
   AccessTokenRefreshError, ApiError, ApiValidationError,
@@ -218,5 +218,37 @@ describe('R1-1 削除による編集解除', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '一覧を再読み込み' })).not.toBeInTheDocument()
     expect(deleteSubscription).toHaveBeenCalledWith(video.id)
+  })
+})
+
+describe('R1-2 サブスク更新中の画面移動', () => {
+  it.each(['登録', '編集', '削除'])('%s中は月次画面へ移動できず完了後に移動できる', async (operation) => {
+    const pending = deferred<ApiSubscription>()
+    const deleting = deferred<void>()
+    vi.mocked(createSubscription).mockReturnValue(pending.promise)
+    vi.mocked(updateSubscription).mockReturnValue(pending.promise)
+    vi.mocked(deleteSubscription).mockReturnValue(deleting.promise)
+    render(<MemoryRouter initialEntries={['/subscriptions']}><Routes>
+      <Route path="/subscriptions" element={<SubscriptionsPage />} />
+      <Route path="/" element={<h1>移動先の月次画面</h1>} />
+    </Routes></MemoryRouter>)
+    await screen.findByRole('heading', { name: 'サブスク一覧' })
+    if (operation === '登録') {
+      fill(); fireEvent.click(screen.getByRole('button', { name: '登録する' }))
+    } else if (operation === '編集') { edit(); save() }
+    else { openDelete(); confirmDelete() }
+    const link = screen.getByRole('link', { name: '月次画面へ戻る' })
+    expect(link).toHaveAttribute('aria-disabled', 'true')
+    expect(link).not.toHaveAttribute('href')
+    fireEvent.click(link)
+    expect(screen.queryByRole('heading', { name: '移動先の月次画面' })).not.toBeInTheDocument()
+    await act(async () => {
+      if (operation === '削除') deleting.resolve()
+      else pending.resolve(video)
+    })
+    const enabledLink = screen.getByRole('link', { name: '月次画面へ戻る' })
+    expect(enabledLink).toHaveAttribute('href', '/')
+    fireEvent.click(enabledLink)
+    expect(screen.getByRole('heading', { name: '移動先の月次画面' })).toBeInTheDocument()
   })
 })

@@ -383,10 +383,15 @@
   }
 }
 
-.app-home__header a {
+.app-home__header a, .app-home__header [aria-disabled='true'] {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
   padding: 0.5rem 1rem;
   color: #1f2933;
+}
+
+.app-home__header [aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
 }

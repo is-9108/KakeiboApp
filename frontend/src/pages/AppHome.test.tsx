@@ -1,4 +1,4 @@
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import AppHome from './AppHome'
 import {
@@ -970,5 +970,42 @@ describe('サブスクの導線とカテゴリ（F13〜F15）', () => {
     fireEvent.change(screen.getByLabelText('カテゴリ'), { target: { value: 'サブスク' } })
     fireEvent.click(screen.getByRole('button', { name: '保存する' }))
     await waitFor(() => expect(updateEntry).toHaveBeenCalledWith(1, expect.objectContaining({ category: 'サブスク' })))
+  })
+})
+
+describe('R1-2 月次画面の更新中の画面移動', () => {
+  it.each(['登録', '編集', '削除'])('%s中はサブスク管理へ移動できず完了後に移動できる', async (operation) => {
+    const pending = deferred<ApiEntry>()
+    const deleting = deferred<void>()
+    vi.mocked(createEntry).mockReturnValue(pending.promise)
+    vi.mocked(updateEntry).mockReturnValue(pending.promise)
+    vi.mocked(deleteEntry).mockReturnValue(deleting.promise)
+    mockMonth([octEntry])
+    render(<MemoryRouter><Routes>
+      <Route path="/" element={<AppHome />} />
+      <Route path="/subscriptions" element={<h1>移動先のサブスク管理</h1>} />
+    </Routes></MemoryRouter>)
+    await screen.findByRole('heading', { name: '月次集計' })
+    if (operation === '登録') { fillForm(); submitCreate() }
+    else if (operation === '編集') {
+      fireEvent.click(editButtons()[0])
+      fireEvent.click(screen.getByRole('button', { name: '保存する' }))
+    } else {
+      fireEvent.click(deleteButtons()[0])
+      fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+    }
+    const link = screen.getByRole('link', { name: 'サブスク管理' })
+    expect(link).toHaveAttribute('aria-disabled', 'true')
+    expect(link).not.toHaveAttribute('href')
+    fireEvent.click(link)
+    expect(screen.queryByRole('heading', { name: '移動先のサブスク管理' })).not.toBeInTheDocument()
+    await act(async () => {
+      if (operation === '削除') deleting.resolve()
+      else pending.resolve(octEntry)
+    })
+    const enabledLink = screen.getByRole('link', { name: 'サブスク管理' })
+    expect(enabledLink).toHaveAttribute('href', '/subscriptions')
+    fireEvent.click(enabledLink)
+    expect(screen.getByRole('heading', { name: '移動先のサブスク管理' })).toBeInTheDocument()
   })
 })

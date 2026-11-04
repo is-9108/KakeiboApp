@@ -336,7 +336,11 @@ export default function AppHome() {
     <main className="app-home">
       <header className="app-home__header">
         <h1>家計簿</h1>
-        <Link to="/subscriptions">サブスク管理</Link>
+        {busy ? (
+          <span role="link" aria-disabled="true">サブスク管理</span>
+        ) : (
+          <Link to="/subscriptions">サブスク管理</Link>
+        )}
         <button type="button" onClick={() => void signOut()}>
           ログアウト
         </button>

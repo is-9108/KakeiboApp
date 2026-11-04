@@ -18,7 +18,7 @@
   gap: 0.75rem;
 }
 .subscriptions-page__header { justify-content: space-between; padding-bottom: 0.75rem; border-bottom: 1px solid #d2d6dc; }
-.subscriptions-page button, .subscriptions-page__header a {
+.subscriptions-page button, .subscriptions-page__header a, .subscriptions-page__header [aria-disabled='true'] {
   min-height: 44px;
   padding: 0.5rem 1rem;
   border: 1px solid #52606d;
@@ -28,7 +28,7 @@
   font: inherit;
   cursor: pointer;
 }
-.subscriptions-page__header a { display: inline-flex; align-items: center; }
+.subscriptions-page__header a, .subscriptions-page__header [aria-disabled='true'] { display: inline-flex; align-items: center; }
 .subscriptions-page button:disabled { opacity: 0.55; cursor: not-allowed; }
 .subscriptions-page :focus-visible, .subscription-form h2:focus { outline: 3px solid #2563eb; outline-offset: 2px; }
 .subscriptions-page__columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; margin-top: 1rem; }
@@ -57,4 +57,9 @@
 @media (min-width: 900px) {
   .subscriptions-page { padding: 2rem; }
   .subscriptions-page__columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+}
+
+.subscriptions-page__header [aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
 }

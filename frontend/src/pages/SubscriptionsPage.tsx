@@ -273,7 +273,11 @@ export default function SubscriptionsPage() {
     <main className="subscriptions-page">
       <header className="subscriptions-page__header">
         <h1>サブスク管理</h1>
-        <Link to="/">月次画面へ戻る</Link>
+        {busy ? (
+          <span role="link" aria-disabled="true">月次画面へ戻る</span>
+        ) : (
+          <Link to="/">月次画面へ戻る</Link>
+        )}
         <button type="button" onClick={() => void signOut()}>
           ログアウト
         </button>
