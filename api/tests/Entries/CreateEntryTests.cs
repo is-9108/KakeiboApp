@@ -95,4 +95,14 @@ public class CreateEntryTests(KakeiboApiTestFactory factory) : EntriesApiTestBas
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal(2147483647, json.GetProperty("amount").GetInt32());
     }
+    [Fact]
+    public async Task サブスクを支出として登録して一覧に表示できる()
+    {
+        var body = EntryBody("2031-01-15", "支出", 1500, "サブスク");
+        var id = await CreateEntryAsync(body);
+        var list = await JsonBodyAsync(await Client.GetAsync("/api/entries?month=2031-01"));
+        var entry = Assert.Single(list.EnumerateArray());
+        Assert.Equal(id, entry.GetProperty("id").GetInt32());
+        Assert.Equal("サブスク", entry.GetProperty("category").GetString());
+    }
 }

@@ -1,0 +1,10 @@
+namespace Kakeibo.Api.Models;
+
+/// <summary>毎月発生する定額の支出。</summary>
+public class Subscription
+{
+    public int Id { get; set; }
+    public required string Name { get; set; }
+    public int Amount { get; set; }
+    public required string Memo { get; set; }
+}

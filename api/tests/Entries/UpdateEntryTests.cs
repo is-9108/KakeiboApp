@@ -196,4 +196,17 @@ public class UpdateEntryTests(KakeiboApiTestFactory factory) : EntriesApiTestBas
         var deleteResponse = await Client.DeleteAsync("/api/entries/abc");
         Assert.Equal(HttpStatusCode.NotFound, deleteResponse.StatusCode);
     }
+    [Theory]
+    [InlineData("支出", "外食費", HttpStatusCode.OK, "サブスク")]
+    [InlineData("収入", "給与", HttpStatusCode.BadRequest, "給与")]
+    public async Task サブスクへの編集は支出だけ許可する(string type, string category, HttpStatusCode status, string expected)
+    {
+        var body = EntryBody("2031-01-15", type, 1500, category);
+        var id = await CreateEntryAsync(body);
+        body["category"] = "サブスク";
+        var response = await Client.PutAsync($"/api/entries/{id}", Json(body));
+        Assert.Equal(status, response.StatusCode);
+        var list = await JsonBodyAsync(await Client.GetAsync("/api/entries?month=2031-01"));
+        Assert.Equal(expected, Assert.Single(list.EnumerateArray()).GetProperty("category").GetString());
+    }
 }

@@ -157,4 +157,13 @@ public class CreateEntryValidationTests(KakeiboApiTestFactory factory) : Entries
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal(0, CountEntries());
     }
+    [Fact]
+    public async Task サブスクを収入として登録できない()
+    {
+        var response = await Client.PostAsync("/api/entries", Json(EntryBody("2031-01-15", "収入", 1500, "サブスク")));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var json = await JsonBodyAsync(response);
+        Assert.True(json.GetProperty("errors").TryGetProperty("category", out _));
+        Assert.Equal(0, CountEntries());
+    }
 }

@@ -9,6 +9,9 @@ public class KakeiboDbContext(DbContextOptions<KakeiboDbContext> options) : DbCo
     /// <summary>収支。</summary>
     public DbSet<Entry> Entries => Set<Entry>();
 
+    /// <summary>サブスク。</summary>
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Entry>(entity =>
@@ -32,6 +35,15 @@ public class KakeiboDbContext(DbContextOptions<KakeiboDbContext> options) : DbCo
             entity.Property(e => e.Memo)
                 .HasColumnName("memo")
                 .HasMaxLength(500);
+        });
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.ToTable("subscriptions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100);
+            entity.Property(e => e.Amount).HasColumnName("amount");
+            entity.Property(e => e.Memo).HasColumnName("memo").HasMaxLength(500);
         });
     }
 }
