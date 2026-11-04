@@ -24,6 +24,7 @@ public static class Presets
         "通信費",
         "趣味・娯楽",
         "医療・健康",
+        "サブスク",
         "その他",
     ];
 
