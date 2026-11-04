@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import {
@@ -335,6 +336,7 @@ export default function AppHome() {
     <main className="app-home">
       <header className="app-home__header">
         <h1>家計簿</h1>
+        <Link to="/subscriptions" aria-disabled={busy || undefined} onClick={event => { if (mutationRef.current) event.preventDefault() }}>サブスク管理</Link>
         <button type="button" onClick={() => void signOut()}>
           ログアウト
         </button>
