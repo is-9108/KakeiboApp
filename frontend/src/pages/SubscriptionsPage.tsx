@@ -239,6 +239,8 @@ export default function SubscriptionsPage() {
       if (editingSubscription?.id === target.id) {
         setEditingSubscription(null)
         setFormValues(blankForm())
+        setFormError(null)
+        setFormErrorCanReload(false)
       }
       setDeleteTarget(null)
       setNotice('サブスクを削除しました。')

@@ -199,3 +199,24 @@ describe('サブスク管理画面（F12、F16〜F26）', () => {
     expect(signOut).not.toHaveBeenCalled()
   })
 })
+
+describe('R1-1 削除による編集解除', () => {
+  it.each([
+    ['サーバーエラー', new ApiError('失敗', 500)],
+    ['通信断', new TypeError('offline')],
+  ])('%sの後で編集中の対象を削除したら古いエラーと再読み込みを消す', async (_kind, error) => {
+    vi.mocked(updateSubscription).mockRejectedValue(error)
+    await ready(); edit(); save()
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    if (error instanceof TypeError) {
+      expect(screen.getByRole('button', { name: '一覧を再読み込み' })).toBeInTheDocument()
+    }
+    vi.mocked(fetchSubscriptions).mockResolvedValue([music])
+    openDelete(); confirmDelete()
+    expect(await screen.findByRole('heading', { name: 'サブスクの登録' })).toBeInTheDocument()
+    expect(screen.getByLabelText('名前')).toHaveValue('')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '一覧を再読み込み' })).not.toBeInTheDocument()
+    expect(deleteSubscription).toHaveBeenCalledWith(video.id)
+  })
+})
