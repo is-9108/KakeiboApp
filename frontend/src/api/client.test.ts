@@ -1,4 +1,8 @@
 import {
+  createSubscription,
+  updateSubscription,
+  deleteSubscription,
+  fetchSubscriptions,
   ApiError,
   ApiValidationError,
   AccessTokenRefreshError,
@@ -328,5 +332,50 @@ describe('deleteEntry', () => {
     const error = await deleteEntry(9).catch((err: unknown) => err)
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).status).toBe(403)
+  })
+})
+
+describe('サブスクAPI（F7〜F8）', () => {
+  const subscription = { name: '動画', amount: 1000, memo: 'メモ' }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+    vi.mocked(fetchSession).mockResolvedValue({ tokens: { accessToken: 'token' } })
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('Bearer付きで一覧を取得する', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ id: 1, ...subscription }]))
+    await expect(fetchSubscriptions()).resolves.toEqual([{ id: 1, ...subscription }])
+    expect(fetch).toHaveBeenCalledWith('/api/subscriptions', { headers: { Authorization: 'Bearer token' } })
+  })
+  it('401をセッション失効として扱う', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(401, {}))
+    await expect(fetchSubscriptions()).rejects.toBeInstanceOf(AccessTokenRefreshError)
+  })
+  it('登録と更新でJSONを送信し保存値を返す', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { id: 1, ...subscription }))
+    await expect(createSubscription(subscription)).resolves.toEqual({ id: 1, ...subscription })
+    expect(fetch).toHaveBeenLastCalledWith('/api/subscriptions', {
+      method: 'POST', headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' }, body: JSON.stringify(subscription),
+    })
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: 1, ...subscription }))
+    await expect(updateSubscription(1, subscription)).resolves.toEqual({ id: 1, ...subscription })
+    expect(fetch).toHaveBeenLastCalledWith('/api/subscriptions/1', {
+      method: 'PUT', headers: { Authorization: 'Bearer token', 'Content-Type': 'application/json' }, body: JSON.stringify(subscription),
+    })
+  })
+  it('400は項目別エラーで404はステータスを持つエラーになる', async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { errors: { name: ['不正'] } }))
+    await expect(createSubscription(subscription)).rejects.toMatchObject({ errors: { name: ['不正'] } })
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(404, {}))
+    await expect(updateSubscription(99, subscription)).rejects.toMatchObject({ status: 404 })
+  })
+  it('削除はDELETEを送り204の本文を読まない', async () => {
+    const json = vi.fn()
+    vi.mocked(fetch).mockResolvedValue({ status: 204, ok: true, json } as unknown as Response)
+    await expect(deleteSubscription(1)).resolves.toBeUndefined()
+    expect(fetch).toHaveBeenLastCalledWith('/api/subscriptions/1', { method: 'DELETE', headers: { Authorization: 'Bearer token' } })
+    expect(json).not.toHaveBeenCalled()
   })
 })

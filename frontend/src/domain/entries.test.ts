@@ -31,6 +31,7 @@ describe('プリセット', () => {
       '通信費',
       '趣味・娯楽',
       '医療・健康',
+      'サブスク',
       'その他',
     ])
   })
@@ -206,4 +207,9 @@ describe('translateValidationErrors', () => {
       '金額は1円以上2,147,483,647円以下で入力してください。',
     ])
   })
+})
+
+it('サブスクは支出だけで選択できる（F2）', () => {
+  expect(validateEntryForm({ ...validValues, category: 'サブスク' })).toEqual({})
+  expect(validateEntryForm({ ...validValues, type: '収入', category: 'サブスク' }).category).toBeDefined()
 })

@@ -1,0 +1,60 @@
+/* サブスク管理。360px幅を基準に、長い入力を折り返す。 */
+.subscriptions-page {
+  box-sizing: border-box;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+  color: #1f2933;
+  overflow-wrap: anywhere;
+}
+.subscriptions-page *, .subscriptions-page *::before, .subscriptions-page *::after { box-sizing: border-box; }
+.subscriptions-page h1, .subscriptions-page h2, .subscriptions-page p { margin: 0; }
+.subscriptions-page h1 { font-size: 1.5rem; }
+.subscriptions-page h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+.subscriptions-page__header, .subscription-list__actions, .subscription-form__actions, .delete-subscription-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.subscriptions-page__header { justify-content: space-between; padding-bottom: 0.75rem; border-bottom: 1px solid #d2d6dc; }
+.subscriptions-page button, .subscriptions-page__header a {
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid #52606d;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f2933;
+  font: inherit;
+  cursor: pointer;
+}
+.subscriptions-page__header a { display: inline-flex; align-items: center; }
+.subscriptions-page button:disabled { opacity: 0.55; cursor: not-allowed; }
+.subscriptions-page :focus-visible, .subscription-form h2:focus { outline: 3px solid #2563eb; outline-offset: 2px; }
+.subscriptions-page__columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; margin-top: 1rem; }
+.subscription-list, .subscription-form { min-width: 0; padding: 0.75rem; border: 1px solid #d2d6dc; border-radius: 8px; background: #fff; }
+.subscription-list__items { padding: 0; margin: 0; list-style: none; }
+.subscription-list__item { display: grid; gap: 0.5rem; padding: 0.75rem 0; border-bottom: 1px solid #e4e7eb; }
+.subscription-list__name { font-weight: 700; }
+.subscription-list__memo, .delete-subscription-dialog__memo { white-space: pre-wrap; color: #3e4c59; }
+.subscription-form__field { display: grid; min-width: 0; gap: 0.25rem; margin-bottom: 0.75rem; }
+.subscription-form label { font-weight: 600; }
+.subscription-form input, .subscription-form textarea {
+  width: 100%; min-width: 0; max-width: 100%; min-height: 44px;
+  padding: 0.5rem; border: 1px solid #9aa5b1; border-radius: 6px; font: inherit;
+}
+.subscription-form textarea { resize: vertical; }
+.subscription-form [aria-invalid='true'] { border-color: #b91c1c; }
+.subscriptions-page [role='alert'] { color: #b91c1c; }
+.subscriptions-page__error, .subscription-form__alert { margin: 0.75rem 0; padding: 0.75rem; border-radius: 6px; background: #fef2f2; }
+.subscriptions-page__notice { margin: 0.75rem 0; padding: 0.5rem 0.75rem; border-radius: 6px; background: #ecfdf5; color: #065f46; }
+.subscriptions-page__loading { padding: 1rem 0; }
+.delete-subscription-dialog { width: min(28rem, calc(100% - 2rem)); max-width: 100%; padding: 1rem; border: 1px solid #9aa5b1; border-radius: 8px; }
+.delete-subscription-dialog__target { margin: 0.75rem 0; padding: 0.5rem; background: #f1f5f9; border-radius: 6px; }
+.delete-subscription-dialog__error { margin-bottom: 0.75rem; }
+.delete-subscription-dialog__actions { justify-content: flex-end; }
+.subscriptions-page .delete-subscription-dialog__confirm { background: #b91c1c; color: #fff; border-color: #b91c1c; }
+@media (min-width: 900px) {
+  .subscriptions-page { padding: 2rem; }
+  .subscriptions-page__columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+}

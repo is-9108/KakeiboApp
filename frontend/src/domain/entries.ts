@@ -15,6 +15,7 @@ export const EXPENSE_CATEGORIES = [
   '通信費',
   '趣味・娯楽',
   '医療・健康',
+  'サブスク',
   'その他',
 ] as const
 

@@ -4,6 +4,7 @@ import RequireAuth from './auth/RequireAuth'
 import UnauthenticatedOnly from './UnauthenticatedOnly'
 import LoginPage from './pages/LoginPage'
 import AppHome from './pages/AppHome'
+import SubscriptionsPage from './pages/SubscriptionsPage'
 
 const defaultConfig: CognitoConfig = {
   region: import.meta.env.VITE_COGNITO_REGION,
@@ -25,6 +26,7 @@ export function AppRoutes() {
           </UnauthenticatedOnly>
         }
       />
+      <Route path="/subscriptions" element={<RequireAuth><SubscriptionsPage /></RequireAuth>} />
       <Route
         path="*"
         element={

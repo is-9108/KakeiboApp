@@ -3,7 +3,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import { AppRoutes } from './App'
 import { AuthProvider, type CognitoConfig } from './auth/AuthContext'
 import { fetchSession, signIn, completeNewPassword, signOutUser } from './auth/amplifyAuth'
-import { ApiError, fetchEntries, fetchSummary } from './api/client'
+import { ApiError, fetchEntries, fetchSummary, fetchSubscriptions } from './api/client'
 
 /** テスト用のCognito設定（AuthProviderのconfigとして渡すがconfigureCognitoはモック済み） */
 const testConfig: CognitoConfig = {
@@ -28,6 +28,10 @@ vi.mock('./api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api/client')>()
   return {
     ...actual,
+    fetchSubscriptions: vi.fn(),
+    createSubscription: vi.fn(),
+    updateSubscription: vi.fn(),
+    deleteSubscription: vi.fn(),
     fetchEntries: vi.fn(),
     fetchSummary: vi.fn(),
     createEntry: vi.fn(),
@@ -48,6 +52,7 @@ function setupMocks({
     if (sessionError) return Promise.reject(new Error('session error'))
     return Promise.resolve(session as never)
   })
+  vi.mocked(fetchSubscriptions).mockResolvedValue([])
   vi.mocked(fetchEntries).mockResolvedValue([])
   vi.mocked(fetchSummary).mockResolvedValue({
     month: '2026-10',
@@ -375,5 +380,23 @@ describe('AppとAPI連携', () => {
     renderApp()
     await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/login'))
     expect(vi.mocked(signOutUser)).toHaveBeenCalled()
+  })
+})
+
+describe('サブスク管理のルーティング（F27）', () => {
+  beforeEach(() => { vi.clearAllMocks(); setupMocks() })
+  it('未ログインで直接開くとログイン画面へ移る', async () => {
+    renderApp('/subscriptions')
+    expect(await screen.findByRole('heading', { name: 'ログイン' })).toBeInTheDocument()
+    expect(fetchSubscriptions).not.toHaveBeenCalled()
+  })
+  it('ログイン済みなら月次画面から移動して戻れる', async () => {
+    setupMocks({ session: { tokens: { accessToken: 'valid' } } })
+    renderApp()
+    fireEvent.click(await screen.findByRole('link', { name: 'サブスク管理' }))
+    expect(await screen.findByRole('heading', { name: 'サブスク管理' })).toBeInTheDocument()
+    expect(await screen.findByText('登録されたサブスクはありません。')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: '月次画面へ戻る' }))
+    expect(await screen.findByRole('heading', { name: '家計簿' })).toBeInTheDocument()
   })
 })

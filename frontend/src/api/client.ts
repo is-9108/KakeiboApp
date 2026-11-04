@@ -184,3 +184,49 @@ export async function deleteEntry(id: number): Promise<void> {
   const response = await sendRequest(`/api/entries/${id}`, { method: 'DELETE' })
   await ensureOk(response)
 }
+
+/** サブスクの送信値。 */
+export interface SubscriptionPayload {
+  name: string
+  amount: number
+  memo: string
+}
+
+export interface ApiSubscription extends SubscriptionPayload {
+  id: number
+}
+
+/** 登録順でサブスクを取得する。 */
+export async function fetchSubscriptions(): Promise<ApiSubscription[]> {
+  const response = await sendRequest('/api/subscriptions')
+  await ensureOk(response)
+  return (await response.json()) as ApiSubscription[]
+}
+
+/** サブスクを登録する。 */
+export async function createSubscription(payload: SubscriptionPayload): Promise<ApiSubscription> {
+  const response = await sendRequest('/api/subscriptions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  await ensureOk(response)
+  return (await response.json()) as ApiSubscription
+}
+
+/** サブスクを更新する。全項目を置換する。 */
+export async function updateSubscription(id: number, payload: SubscriptionPayload): Promise<ApiSubscription> {
+  const response = await sendRequest(`/api/subscriptions/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  await ensureOk(response)
+  return (await response.json()) as ApiSubscription
+}
+
+/** サブスクを削除する。成功時は204で本文なし。 */
+export async function deleteSubscription(id: number): Promise<void> {
+  const response = await sendRequest(`/api/subscriptions/${id}`, { method: 'DELETE' })
+  await ensureOk(response)
+}
