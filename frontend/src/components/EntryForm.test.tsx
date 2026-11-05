@@ -392,3 +392,13 @@ describe('EntryForm', () => {
     expect(screen.getByRole('button', { name: '登録中…' })).toBeDisabled()
   })
 })
+
+
+it('サブスクは支出だけで選択でき種別変更で解除される', () => {
+  renderForm({ initial: { ...defaultValues, category: 'サブスク' } })
+  expect(screen.getByRole('option', { name: 'サブスク' })).toBeInTheDocument()
+  expect(screen.getByLabelText('カテゴリ')).toHaveValue('サブスク')
+  fireEvent.change(screen.getByLabelText('種別'), { target: { value: '収入' } })
+  expect(screen.queryByRole('option', { name: 'サブスク' })).not.toBeInTheDocument()
+  expect(screen.getByLabelText('カテゴリ')).toHaveValue('')
+})

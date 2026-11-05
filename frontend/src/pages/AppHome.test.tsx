@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import AppHome from './AppHome'
 import {
@@ -100,7 +101,7 @@ function mockMonth(entries: ApiEntry[] = [], summary: ApiMonthlySummary = emptyS
 }
 
 async function renderHome() {
-  render(<AppHome />)
+  render(<MemoryRouter><AppHome /></MemoryRouter>)
   await screen.findByRole('heading', { name: '月次集計' })
 }
 
@@ -230,7 +231,7 @@ describe('月次画面の取得と表示', () => {
       month === '2026-10' ? octSummaryResponse.promise : novSummaryResponse.promise,
     )
 
-    render(<AppHome />)
+    render(<MemoryRouter><AppHome /></MemoryRouter>)
     fireEvent.click(screen.getByRole('button', { name: '次月' }))
 
     await act(async () => {
@@ -716,7 +717,7 @@ describe('異常系と再取得', () => {
     vi.mocked(fetchEntries).mockRejectedValue(new ApiError('failed', 500))
     vi.mocked(fetchSummary).mockResolvedValue(octSummary)
 
-    render(<AppHome />)
+    render(<MemoryRouter><AppHome /></MemoryRouter>)
 
     expect(await screen.findByText('月次データを取得できませんでした。')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '再読み込み' })).toBeInTheDocument()
@@ -729,7 +730,7 @@ describe('異常系と再取得', () => {
     vi.mocked(fetchEntries).mockResolvedValue([octEntry])
     vi.mocked(fetchSummary).mockRejectedValue(new ApiError('failed', 500))
 
-    render(<AppHome />)
+    render(<MemoryRouter><AppHome /></MemoryRouter>)
 
     expect(await screen.findByText('月次データを取得できませんでした。')).toBeInTheDocument()
     expect(screen.queryByText('昼食')).not.toBeInTheDocument()
@@ -901,7 +902,7 @@ describe('異常系と再取得', () => {
   it('signs out when the session expired during loading（T20）', async () => {
     vi.mocked(fetchEntries).mockRejectedValue(new AccessTokenRefreshError())
 
-    render(<AppHome />)
+    render(<MemoryRouter><AppHome /></MemoryRouter>)
 
     await waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1))
   })
@@ -936,7 +937,7 @@ describe('異常系と再取得', () => {
     vi.mocked(fetchEntries).mockRejectedValueOnce(new ApiError('failed', 500))
     vi.mocked(fetchSummary).mockRejectedValueOnce(new ApiError('failed', 500))
 
-    render(<AppHome />)
+    render(<MemoryRouter><AppHome /></MemoryRouter>)
     await screen.findByText('月次データを取得できませんでした。')
 
     fireEvent.click(screen.getByRole('button', { name: '再読み込み' }))
@@ -945,4 +946,20 @@ describe('異常系と再取得', () => {
     expect(fetchEntries).toHaveBeenCalledTimes(2)
     expect(fetchSummary).toHaveBeenCalledTimes(2)
   })
+})
+
+
+it('月次画面でサブスクカテゴリを登録・編集できる', async () => {
+  await renderHome()
+  fillForm({ category: 'サブスク' })
+  submitCreate()
+  await waitFor(() => expect(createEntry).toHaveBeenCalledWith(expect.objectContaining({ category: 'サブスク', type: '支出' })))
+})
+it('既存収支をサブスクカテゴリに編集できる', async () => {
+  mockMonth([octEntry])
+  await renderHome()
+  fireEvent.click(editButtons()[0])
+  fireEvent.change(screen.getByLabelText('カテゴリ'), { target: { value: 'サブスク' } })
+  fireEvent.click(screen.getByRole('button', { name: '保存する' }))
+  await waitFor(() => expect(updateEntry).toHaveBeenCalledWith(octEntry.id, expect.objectContaining({ category: 'サブスク' })))
 })

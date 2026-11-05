@@ -3,7 +3,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
 import { AppRoutes } from './App'
 import { AuthProvider, type CognitoConfig } from './auth/AuthContext'
 import { fetchSession, signIn, completeNewPassword, signOutUser } from './auth/amplifyAuth'
-import { ApiError, fetchEntries, fetchSummary } from './api/client'
+import { ApiError, fetchEntries, fetchSummary, fetchSubscriptions } from './api/client'
 
 /** テスト用のCognito設定（AuthProviderのconfigとして渡すがconfigureCognitoはモック済み） */
 const testConfig: CognitoConfig = {
@@ -30,6 +30,7 @@ vi.mock('./api/client', async (importOriginal) => {
     ...actual,
     fetchEntries: vi.fn(),
     fetchSummary: vi.fn(),
+    fetchSubscriptions: vi.fn(),
     createEntry: vi.fn(),
     updateEntry: vi.fn(),
     deleteEntry: vi.fn(),
@@ -375,5 +376,32 @@ describe('AppとAPI連携', () => {
     renderApp()
     await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/login'))
     expect(vi.mocked(signOutUser)).toHaveBeenCalled()
+  })
+})
+
+
+describe('サブスク管理のルーティング', () => {
+  beforeEach(() => { vi.resetAllMocks(); setupMocks(); vi.mocked(fetchSubscriptions).mockResolvedValue([]) })
+  it('未認証の直接アクセスはログインへ移動しAPIを呼ばない', async () => {
+    renderApp('/subscriptions')
+    await screen.findByRole('heading', { name: 'ログイン' })
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/login')
+    expect(fetchSubscriptions).not.toHaveBeenCalled()
+  })
+  it('認証済みの直接アクセスで管理画面を表示する', async () => {
+    setupMocks({ session: { tokens: { accessToken: 'token' } } })
+    renderApp('/subscriptions')
+    await screen.findByRole('heading', { name: 'サブスク管理' })
+    expect(fetchSubscriptions).toHaveBeenCalledTimes(1)
+  })
+  it('月次画面と管理画面を往復できる', async () => {
+    setupMocks({ session: { tokens: { accessToken: 'token' } } })
+    renderApp()
+    fireEvent.click(await screen.findByRole('link', { name: 'サブスク管理' }))
+    await screen.findByRole('heading', { name: 'サブスク管理' })
+    expect(screen.getByTestId('current-path')).toHaveTextContent('/subscriptions')
+    fireEvent.click(screen.getByRole('link', { name: '月次画面へ戻る' }))
+    await screen.findByRole('heading', { name: '家計簿' })
+    expect(screen.getByTestId('current-path').textContent).toBe('/')
   })
 })
