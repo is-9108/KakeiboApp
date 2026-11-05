@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import './LoginPage.css'
 
 /** Cognitoへのログイン画面。サインアップ導線は存在しない。 */
 export default function LoginPage() {
@@ -28,27 +29,31 @@ export default function LoginPage() {
   }
 
   return (
-    <main>
+    <main className="login-page">
       <h1>ログイン</h1>
-      <form onSubmit={onSubmit}>
-        <label htmlFor="login-email">メールアドレス</label>
-        <input
-          id="login-email"
-          type="email"
-          autoComplete="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-        <label htmlFor="login-password">パスワード</label>
-        <input
-          id="login-password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        {error !== null && <p role="alert">{error}</p>}
-        <button type="submit" disabled={submitting}>
+      <form className="login-page__form" onSubmit={onSubmit}>
+        <div className="login-page__field">
+          <label htmlFor="login-email">メールアドレス</label>
+          <input
+            id="login-email"
+            type="email"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+        </div>
+        <div className="login-page__field">
+          <label htmlFor="login-password">パスワード</label>
+          <input
+            id="login-password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        {error !== null && <p className="login-page__error" role="alert">{error}</p>}
+        <button className="login-page__submit" type="submit" disabled={submitting}>
           {submitting ? 'ログイン中…' : 'ログイン'}
         </button>
       </form>
