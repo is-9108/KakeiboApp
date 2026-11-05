@@ -178,6 +178,33 @@ describe('App（認証ガード）', () => {
     expect(vi.mocked(signIn)).not.toHaveBeenCalled()
   })
 
+  it('ログイン入力欄のラベル関連付け・型・自動入力属性を維持する', async () => {
+    renderApp('/login')
+    await screen.findByRole('heading', { name: 'ログイン' })
+
+    const email = screen.getByLabelText('メールアドレス')
+    expect(email).toHaveAttribute('id', 'login-email')
+    expect(email).toHaveAttribute('type', 'email')
+    expect(email).toHaveAttribute('autocomplete', 'username')
+    const password = screen.getByLabelText('パスワード')
+    expect(password).toHaveAttribute('id', 'login-password')
+    expect(password).toHaveAttribute('type', 'password')
+    expect(password).toHaveAttribute('autocomplete', 'current-password')
+  })
+
+  it.each([
+    ['メールアドレス', 'user@example.com'],
+    ['パスワード', 'Passw0rd!'],
+  ])('%sだけ入力して送信すると案内を表示しsignInを呼ばない', async (label, value) => {
+    renderApp('/login')
+    await screen.findByRole('heading', { name: 'ログイン' })
+    fireEvent.change(screen.getByLabelText(label), { target: { value } })
+    fireEvent.click(screen.getByRole('button', { name: 'ログイン' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('メールアドレスとパスワードを入力してください。')
+    expect(signIn).not.toHaveBeenCalled()
+  })
+
   it('送信中の連続操作でログイン要求を重複させない（T13）', async () => {
     let resolveSignIn: ((value: unknown) => void) | undefined
     vi.mocked(signIn).mockImplementation(() => new Promise((resolve) => { resolveSignIn = resolve }) as never)

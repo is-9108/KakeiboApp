@@ -1,0 +1,69 @@
+/* ログイン画面専用。すべての画面幅で単一列を維持する。 */
+.login-page {
+  box-sizing: border-box;
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 1rem;
+  color: #1f2933;
+}
+
+.login-page *,
+.login-page *::before,
+.login-page *::after {
+  box-sizing: border-box;
+}
+
+.login-page__form,
+.login-page__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.login-page__form {
+  gap: 1rem;
+}
+
+.login-page__field {
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.login-page__field label {
+  font-weight: 600;
+}
+
+.login-page__field input,
+.login-page__submit {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.5rem;
+  border: 1px solid #9aa5b1;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.login-page__submit {
+  border-color: #52606d;
+  background: #fff;
+  color: #1f2933;
+  cursor: pointer;
+}
+
+.login-page__submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.login-page__field input:focus-visible,
+.login-page__submit:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.login-page__error {
+  margin: 0;
+  color: #b91c1c;
+  overflow-wrap: anywhere;
+}
