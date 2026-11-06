@@ -3,4 +3,5 @@
     <Project Path="tests/Kakeibo.Api.Tests.csproj" />
   </Folder>
   <Project Path="Kakeibo.Api.csproj" />
+  <Project Path="batch/Kakeibo.MonthlyBatch.csproj" />
 </Solution>

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<KakeiboDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<Kakeibo.Api.Services.MonthlySummaryService>();
 builder.Services.AddCognitoAuthentication(builder.Configuration);
 // AWS Lambda（API Gateway HTTP API）ではKestrelの代わりにLambdaランタイムで待ち受ける。
 // Lambda外（ローカル・テスト）では何もしないため、通常のKestrel起動は維持される。

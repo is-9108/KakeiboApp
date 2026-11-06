@@ -34,3 +34,13 @@ output "spa_rewrite_function_name" {
   description = "SPA フォールバック用 CloudFront Function 名"
   value       = aws_cloudfront_function.spa_rewrite.name
 }
+
+output "monthly_batch_function_name" {
+  description = "月次通知の手動非同期起動に使うLambda関数名。"
+  value       = aws_lambda_function.monthly.function_name
+}
+
+output "monthly_notification_topic_arn" {
+  description = "購読状態の確認に使うSNSトピックARN。"
+  value       = aws_sns_topic.monthly.arn
+}

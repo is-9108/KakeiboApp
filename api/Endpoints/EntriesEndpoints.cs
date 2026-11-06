@@ -71,31 +71,14 @@ public static class EntriesEndpoints
             return Results.Ok(list.Select(EntryResponse.From));
         });
 
-        entries.MapGet("/summary", async (KakeiboDbContext db, string? month) =>
+        entries.MapGet("/summary", async (Kakeibo.Api.Services.MonthlySummaryService summary, string? month) =>
         {
-            if (TryParseMonthRange(month) is not (var firstDay, var lastDay))
+            if (TryParseMonthRange(month) is null)
             {
                 return MonthRequired();
             }
 
-            var monthEntries = await db.Entries
-                .Where(e => e.Date >= firstDay && e.Date <= lastDay)
-                .ToListAsync();
-            var incomeTotal = monthEntries.Where(e => e.Type == Presets.Income).Sum(e => e.Amount);
-            var expenseTotal = monthEntries.Where(e => e.Type == Presets.Expense).Sum(e => e.Amount);
-            var breakdown = monthEntries
-                .Where(e => e.Type == Presets.Expense)
-                .GroupBy(e => e.Category, StringComparer.Ordinal)
-                .Select(g => new ExpenseCategoryBreakdown(
-                    g.Key,
-                    g.Sum(e => e.Amount),
-                    Percentage(g.Sum(e => e.Amount), expenseTotal)))
-                .OrderByDescending(b => b.Amount)
-                .ThenBy(b => b.Category, StringComparer.Ordinal)
-                .ToList();
-
-            return Results.Ok(new MonthlySummaryResponse(
-                month!, incomeTotal, expenseTotal, incomeTotal - expenseTotal, breakdown));
+            return Results.Ok(await summary.GetAsync(month!));
         });
 
         entries.MapPut("/{id:int}", async (int id, EntryRequest request, KakeiboDbContext db) =>
@@ -156,17 +139,6 @@ public static class EntriesEndpoints
     {
         ["month"] = ["monthはYYYY-MM形式で指定してください。"],
     });
-
-    /// <summary>構成比（支出合計に対する割合）。支出合計が0の月は0。小数第1位で四捨五入する。</summary>
-    private static decimal Percentage(int amount, int expenseTotal)
-    {
-        if (expenseTotal == 0)
-        {
-            return 0;
-        }
-
-        return Math.Round(amount * 100m / expenseTotal, 1, MidpointRounding.AwayFromZero);
-    }
 
     /// <summary>登録・編集リクエストのバリデーション。エラーがあれば項目ごとのメッセージを返す。</summary>
     private static Dictionary<string, string[]> Validate(EntryRequest request)

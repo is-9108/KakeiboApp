@@ -68,10 +68,12 @@ run "deployment_plan" {
   command = plan
 
   variables {
-    database_secret_arn   = "arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:kakeibo/database-EXAMPLE"
-    cognito_user_pool_id  = "ap-northeast-1_xxxxxxxxx"
-    cognito_app_client_id = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
-    api_zip_path          = "tests/fixtures/api.zip.placeholder"
+    database_secret_arn        = "arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:kakeibo/database-EXAMPLE"
+    cognito_user_pool_id       = "ap-northeast-1_xxxxxxxxx"
+    cognito_app_client_id      = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
+    api_zip_path               = "tests/fixtures/api.zip.placeholder"
+    monthly_batch_zip_path     = "tests/fixtures/monthly-batch.zip.placeholder"
+    monthly_notification_email = "monthly@example.com"
   }
 
   # --- Lambda の実行形式と承認済み初期値 -------------------------------------
@@ -290,12 +292,14 @@ run "long_names_stay_within_s3_limits" {
   command = plan
 
   variables {
-    name_prefix           = "abcdefghijklmnop"
-    aws_region            = "ap-southeast-4"
-    database_secret_arn   = "arn:aws:secretsmanager:ap-southeast-4:123456789012:secret:kakeibo/database-EXAMPLE"
-    cognito_user_pool_id  = "ap-southeast-4_xxxxxxxxx"
-    cognito_app_client_id = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
-    api_zip_path          = "tests/fixtures/api.zip.placeholder"
+    name_prefix                = "abcdefghijklmnop"
+    aws_region                 = "ap-southeast-4"
+    database_secret_arn        = "arn:aws:secretsmanager:ap-southeast-4:123456789012:secret:kakeibo/database-EXAMPLE"
+    cognito_user_pool_id       = "ap-southeast-4_xxxxxxxxx"
+    cognito_app_client_id      = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
+    api_zip_path               = "tests/fixtures/api.zip.placeholder"
+    monthly_batch_zip_path     = "tests/fixtures/monthly-batch.zip.placeholder"
+    monthly_notification_email = "monthly@example.com"
   }
 
   assert {
@@ -314,11 +318,13 @@ run "reject_too_long_name_prefix" {
   command = plan
 
   variables {
-    name_prefix           = "abcdefghijklmnopq"
-    database_secret_arn   = "arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:kakeibo/database-EXAMPLE"
-    cognito_user_pool_id  = "ap-northeast-1_xxxxxxxxx"
-    cognito_app_client_id = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
-    api_zip_path          = "tests/fixtures/api.zip.placeholder"
+    name_prefix                = "abcdefghijklmnopq"
+    database_secret_arn        = "arn:aws:secretsmanager:ap-northeast-1:123456789012:secret:kakeibo/database-EXAMPLE"
+    cognito_user_pool_id       = "ap-northeast-1_xxxxxxxxx"
+    cognito_app_client_id      = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
+    api_zip_path               = "tests/fixtures/api.zip.placeholder"
+    monthly_batch_zip_path     = "tests/fixtures/monthly-batch.zip.placeholder"
+    monthly_notification_email = "monthly@example.com"
   }
 
   expect_failures = [var.name_prefix]
