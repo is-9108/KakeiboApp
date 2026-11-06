@@ -51,6 +51,41 @@ mock_provider "aws" {
     }
   }
 
+  mock_resource "aws_lambda_function" {
+    override_during = plan
+    defaults = {
+      arn = "arn:aws:lambda:ap-northeast-1:123456789012:function:kakeibo-monthly"
+    }
+  }
+
+  mock_resource "aws_iam_role" {
+    override_during = plan
+    defaults = {
+      arn = "arn:aws:iam::123456789012:role/mock-role"
+    }
+  }
+
+  mock_resource "aws_sns_topic" {
+    override_during = plan
+    defaults = {
+      arn = "arn:aws:sns:ap-northeast-1:123456789012:kakeibo-monthly"
+    }
+  }
+
+  mock_resource "aws_scheduler_schedule_group" {
+    override_during = plan
+    defaults = {
+      arn = "arn:aws:scheduler:ap-northeast-1:123456789012:schedule-group/kakeibo-monthly"
+    }
+  }
+
+  mock_resource "aws_cloudwatch_log_group" {
+    override_during = plan
+    defaults = {
+      arn = "arn:aws:logs:ap-northeast-1:123456789012:log-group:/aws/lambda/kakeibo-monthly"
+    }
+  }
+
   mock_data "aws_caller_identity" {
     defaults = {
       account_id = "123456789012"
