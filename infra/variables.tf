@@ -43,3 +43,20 @@ variable "api_zip_path" {
   type        = string
   default     = "../.artifacts/api.zip"
 }
+
+variable "monthly_notification_email" {
+  description = "月次通知先。SNS確認メールの承認が必要。stateに保存される個人情報。"
+  type        = string
+  sensitive   = true
+
+  validation {
+    condition     = can(regex("^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$", var.monthly_notification_email))
+    error_message = "monthly_notification_email は有効なメールアドレスを指定してください。"
+  }
+}
+
+variable "monthly_batch_zip_path" {
+  description = "package-monthly-batch.sh が作成するZIPのパス（infra/ からの相対）。"
+  type        = string
+  default     = "../.artifacts/monthly-batch.zip"
+}

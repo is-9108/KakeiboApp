@@ -60,6 +60,7 @@ jobs:
       TF_VAR_aws_region: ${{ vars.AWS_REGION }}
       TF_VAR_name_prefix: ${{ vars.NAME_PREFIX }}
       TF_VAR_database_secret_arn: ${{ vars.DATABASE_SECRET_ARN }}
+      TF_VAR_monthly_notification_email: ${{ vars.MONTHLY_NOTIFICATION_EMAIL }}
       TF_VAR_cognito_region: ${{ vars.COGNITO_REGION }}
       TF_VAR_cognito_user_pool_id: ${{ vars.COGNITO_USER_POOL_ID }}
       TF_VAR_cognito_app_client_id: ${{ vars.COGNITO_APP_CLIENT_ID }}
@@ -99,6 +100,7 @@ jobs:
           COGNITO_REGION: ${{ vars.COGNITO_REGION }}
           COGNITO_USER_POOL_ID: ${{ vars.COGNITO_USER_POOL_ID }}
           COGNITO_APP_CLIENT_ID: ${{ vars.COGNITO_APP_CLIENT_ID }}
+          MONTHLY_NOTIFICATION_EMAIL: ${{ vars.MONTHLY_NOTIFICATION_EMAIL }}
           NEON_DIRECT_HOST: ${{ vars.NEON_DIRECT_HOST }}
           NEON_DATABASE: ${{ vars.NEON_DATABASE }}
           NEON_MIGRATION_USER: ${{ vars.NEON_MIGRATION_USER }}
@@ -108,7 +110,7 @@ jobs:
           for variable in AWS_REGION AWS_DEPLOY_ROLE_ARN \
             TF_STATE_BUCKET TF_STATE_KEY TF_STATE_REGION NAME_PREFIX DATABASE_SECRET_ARN \
             COGNITO_REGION COGNITO_USER_POOL_ID COGNITO_APP_CLIENT_ID \
-            NEON_DIRECT_HOST NEON_DATABASE NEON_MIGRATION_USER NEON_MIGRATION_PASSWORD; do
+            MONTHLY_NOTIFICATION_EMAIL NEON_DIRECT_HOST NEON_DATABASE NEON_MIGRATION_USER NEON_MIGRATION_PASSWORD; do
             if [ -z "${!variable}" ]; then
               echo "::error::必須の設定 $variable が未登録または空です。"
               missing=1
@@ -180,6 +182,10 @@ jobs:
       - name: Lambda パッケージを作成する
         if: steps.latest.outputs.is_latest == 'true'
         run: ./infra/scripts/package-api.sh
+
+      - name: 月次バッチパッケージを作成する
+        if: steps.latest.outputs.is_latest == 'true'
+        run: ./infra/scripts/package-monthly-batch.sh
 
       - name: Terraform の backend を初期化する
         if: steps.latest.outputs.is_latest == 'true'
