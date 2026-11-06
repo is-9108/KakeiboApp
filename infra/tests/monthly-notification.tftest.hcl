@@ -13,7 +13,7 @@ mock_provider "aws" {
   # plan の assertion で参照する computed 属性は、意味の分かる固定値にする。
   mock_resource "aws_s3_bucket" {
     override_during = plan
-    defaults        = {
+    defaults = {
       id  = "mock-bucket-id"
       arn = "arn:aws:s3:::mock-bucket"
     }
@@ -21,7 +21,7 @@ mock_provider "aws" {
 
   mock_resource "aws_cloudfront_origin_access_control" {
     override_during = plan
-    defaults        = {
+    defaults = {
       id  = "mock-oac-id"
       arn = "arn:aws:cloudfront::123456789012:origin-access-control/mock-oac"
     }
@@ -29,7 +29,7 @@ mock_provider "aws" {
 
   mock_resource "aws_apigatewayv2_api" {
     override_during = plan
-    defaults        = {
+    defaults = {
       id            = "mockapi1"
       execution_arn = "arn:aws:execute-api:ap-northeast-1:123456789012:mockapi1"
     }
@@ -37,7 +37,7 @@ mock_provider "aws" {
 
   mock_resource "aws_cloudfront_distribution" {
     override_during = plan
-    defaults        = {
+    defaults = {
       id          = "MOCKDIST"
       arn         = "arn:aws:cloudfront::123456789012:distribution/MOCKDIST"
       domain_name = "mock.cloudfront.net"
@@ -46,7 +46,7 @@ mock_provider "aws" {
 
   mock_resource "aws_cloudfront_function" {
     override_during = plan
-    defaults        = {
+    defaults = {
       arn = "arn:aws:cloudfront::123456789012:function/mock-spa-rewrite"
     }
   }
