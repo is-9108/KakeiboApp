@@ -398,6 +398,7 @@ Docker は使いません。リポジトリルートで実行します。
 
 ```bash
 ./infra/scripts/package-api.sh
+./infra/scripts/package-monthly-batch.sh
 ```
 
 - `linux-x64`・自己完結・`AssemblyName=bootstrap` で publish します。
@@ -671,6 +672,7 @@ RELEASE_DIR=".artifacts/releases/$(date +%Y%m%dT%H%M%S)"
   umask 077
   mkdir -p "$RELEASE_DIR"
   cp .artifacts/api.zip "$RELEASE_DIR/api.zip"
+  cp .artifacts/monthly-batch.zip "$RELEASE_DIR/monthly-batch.zip"
   cp infra/terraform.tfvars "$RELEASE_DIR/terraform.tfvars"
   terraform -chdir=infra output -json > "$RELEASE_DIR/outputs.json"
   git rev-parse HEAD > "$RELEASE_DIR/git-revision.txt"
@@ -681,12 +683,13 @@ RELEASE_DIR=".artifacts/releases/$(date +%Y%m%dT%H%M%S)"
 ```
 
 - `lambda-configuration.json` は Lambda の環境変数を含み、接続文字列などの秘密情報を含み得ます。`.artifacts/` は追跡対象外ですが、退避物は秘密情報として権限制限し、共有・添付・アップロードをしないでください。不要になった退避物は削除します。
-- 復旧時は、この退避物の `api.zip`・`git-revision.txt` のコード・tfvars／outputs などの設定を組み合わせて使います。S3 に残ったオブジェクトだけを旧版の保証にしないでください。
+- 復旧時は、この退避物の `api.zip`・`monthly-batch.zip`・`git-revision.txt` のコード・tfvars／outputs などの設定を組み合わせて使います。S3 に残ったオブジェクトだけを旧版の保証にしないでください。
 
 ### アプリ（API）の更新
 
 ```bash
 ./infra/scripts/package-api.sh
+./infra/scripts/package-monthly-batch.sh
 umask 077
 terraform -chdir=infra plan -out=../.artifacts/kakeibo.tfplan
 # 差分を確認する（Lambda の s3_key / source_code_hash が変わる）
@@ -942,7 +945,7 @@ CD の設定（15章）:
 2. CI が成功すると `Deploy` が起動します。同じリポジトリの main への push が起点の CI だけが対象です。
 3. `gate` が CI の `head_sha` と現在の main の先頭を比較します。古いコミットなら通知を出して成功終了し、デプロイをスキップします。
 4. GitHub Environment `production` の承認を待ちます。
-5. 承認後、deploy ジョブの先頭で CI の `head_sha` と現在の main の先頭を再比較します。古ければ通知を出して成功終了し、checkout・AWS 認証を含む後続ステップをすべてスキップします。最新の場合だけ、CI が成功したコミットを checkout し、全13個の Variables と1個の Secret が空でないことを AWS 認証より前に確認します。不足があれば、値は表示せず設定名だけを通知して停止します。マイグレーション SQL の生成（`dotnet ef migrations script`）は restore 済みのプロジェクトを前提にしているため、AWS の認証の前に API の依存パッケージを restore します。その後、マイグレーション → Lambda パッケージ・Terraform plan・同じ plan の apply → フロントのビルド・検査・S3 配置・CloudFront 無効化を、1つのジョブで実行します。
+5. 承認後、deploy ジョブの先頭で CI の `head_sha` と現在の main の先頭を再比較します。古ければ通知を出して成功終了し、checkout・AWS 認証を含む後続ステップをすべてスキップします。最新の場合だけ、CI が成功したコミットを checkout し、全14個の Variables と1個の Secret が空でないことを AWS 認証より前に確認します。不足があれば、値は表示せず設定名だけを通知して停止します。マイグレーション SQL の生成（`dotnet ef migrations script`）は restore 済みのプロジェクトを前提にしているため、AWS の認証の前に API の依存パッケージを restore します。その後、マイグレーション → Lambda パッケージ・Terraform plan・同じ plan の apply → フロントのビルド・検査・S3 配置・CloudFront 無効化を、1つのジョブで実行します。
 
 途中で失敗すると、それ以降の手順は実行されません。自動ロールバックはありません。承認は plan 作成前の1回です。apply 前に plan の差分を見て止める承認段階はありません。state・plan・ZIP・SQL は artifact としてアップロードしません。保存 plan はランナーの一時領域に権限を限定して作成し、apply の終了時に削除します。
 
@@ -1259,6 +1262,7 @@ gh api repos/is-9108/KakeiboApp/actions/oidc/customization/sub
 | `COGNITO_REGION` | Variable | API・フロント共通の Cognito リージョン | `ap-northeast-1` | いいえ |
 | `COGNITO_USER_POOL_ID` | Variable | 既存 User Pool ID | `ap-northeast-1_xxxxxxxxx` | いいえ |
 | `COGNITO_APP_CLIENT_ID` | Variable | シークレットなしの SPA App Client | `xxxxxxxxxxxxxxxxxxxxxxxxxx` | いいえ |
+| `MONTHLY_NOTIFICATION_EMAIL` | Variable | SNS月次通知先（個人情報） | `monthly@example.com` | 個人情報として扱う |
 | `NEON_DIRECT_HOST` | Variable | マイグレーション用 direct endpoint | `ep-example.ap-southeast-1.aws.neon.tech` | いいえ |
 | `NEON_DATABASE` | Variable | 対象 DB | `kakeibo` | いいえ |
 | `NEON_MIGRATION_USER` | Variable | 4章の既定権限を設定した所有者ロール | 6章の `<owner_user>` と同じロール | いいえ |
@@ -1284,10 +1288,11 @@ gh api repos/is-9108/KakeiboApp/actions/oidc/customization/sub
 Terraform apply の途中で60分のタイムアウトやキャンセルが発生すると、S3 の `<STATE_KEY>.tflock` が残る場合があります。次の Deploy が `Error acquiring the state lock` で失敗するときは、以下の手順で確認します。ロック解除や本番への plan はユーザーが手元で行います。
 
 1. Actions と手動作業の状況を確認し、ほかの Deploy や手動の plan / apply が動いていないことを確かめます。承認待ちの Deploy も作業中に開始しないようにします。実行中の処理が使っているロックを解除しないでください。
-2. 手元で最新の main のコードを用意し、2章の AWS 認証と8章の入力値を設定します。`infra/backend.s3.hcl` の bucket・key・region が、production の Variables と同じ既存 state を指していることを確認します。確認用 plan に使う `infra/terraform.tfvars` または `TF_VAR_*` も、現在の production の Variables と同じ値にそろえます。初回構築時の手元の設定をそのまま使わず、次の6項目を照合してください。
+2. 手元で最新の main のコードを用意し、2章の AWS 認証と8章の入力値を設定します。`infra/backend.s3.hcl` の bucket・key・region が、production の Variables と同じ既存 state を指していることを確認します。確認用 plan に使う `infra/terraform.tfvars` または `TF_VAR_*` も、現在の production の Variables と同じ値にそろえます。初回構築時の手元の設定をそのまま使わず、次の7項目を照合してください。
 
    | Terraform の入力変数（tfvars） | 環境変数で渡す場合 | production の Variable |
    |---|---|---|
+   | `monthly_notification_email` | `TF_VAR_monthly_notification_email` | `MONTHLY_NOTIFICATION_EMAIL` |
    | `aws_region` | `TF_VAR_aws_region` | `AWS_REGION` |
    | `name_prefix` | `TF_VAR_name_prefix` | `NAME_PREFIX` |
    | `database_secret_arn` | `TF_VAR_database_secret_arn` | `DATABASE_SECRET_ARN` |
@@ -1309,8 +1314,67 @@ Terraform apply の途中で60分のタイムアウトやキャンセルが発�
 
    ```bash
    ./infra/scripts/package-api.sh
+   ./infra/scripts/package-monthly-batch.sh
    terraform -chdir=infra plan
    ```
 
    state と実リソースの食い違い、作りかけのリソース、意図しない新規作成・置換・削除がないかを確認します。state の書き込み失敗時に生成される `errored.tfstate` は、使い捨ての CD ランナーから回収できるとは限りません。state に記録されていない実リソースがあれば、同名リソースを重複作成せず、必要な import などの復旧を判断してから進めてください。state や plan に秘密情報が含まれるため、内容を共有・アップロードしないでください。
 5. 食い違いを解消し、手動作業が終了した後に、最新コミットの Deploy を **Re-run all jobs** で再実行します。以前の保存 plan は再利用しません。
+
+
+## 16. 月次集計メールの設定と運用
+
+毎月1日0:10 JSTに Scheduler が前月分のバッチを非同期起動します。入力は予定日時に固定するため、月をまたぐ遅延・再試行でも対象月は変わりません。DBはAPIと同じNeon pooled endpoint・TLS設定・現行ロールを使い、読み取りだけ行います。専用Secret・DBロール・スキーマ変更はありません。
+
+### 初回配置・通知先変更
+
+1. Git管理外の `infra/terraform.tfvars` に `monthly_notification_email = "monthly@example.com"` の実通知先版を設定します。ZIP変数 `monthly_batch_zip_path` の既定値は `../.artifacts/monthly-batch.zip` です。CDでは Environment `production` の Variable `MONTHLY_NOTIFICATION_EMAIL` に同じ通知先を登録します。値をログへ出さないでください。SNS購読先はTerraform state・保存planにも含まれる個人情報です。既存のstate保護・plan削除規約を適用します。
+2. 手動配置では両パッケージを生成してから既存手順のplan/applyを行います。CDも両ZIPを作成し、production承認・最新SHA確認の後に同じstateへ適用します。
+
+   ```bash
+   ./infra/scripts/package-api.sh
+   ./infra/scripts/package-monthly-batch.sh
+   terraform -chdir=infra plan
+   terraform -chdir=infra apply
+   ```
+
+3. 通知先に届く **AWS Notification - Subscription Confirmation** メールの **Confirm subscription** を本人が承認します。確認前の購読は PendingConfirmation で、Terraform成功だけではメール到達を保証しません。通知先変更後も新しい通知先で承認が必要です。購読状態はSNSコンソールの該当トピックで確認します（画面にアドレスが出るため共有しない）。
+4. 以下の手動起動とメール受信・CloudWatch Logsを確認します。SNS Publish成功は受信箱への到達保証ではありません。
+
+### 手動非同期起動と障害確認（人間が実環境で実施）
+
+```bash
+MONTHLY_FUNCTION=$(terraform -chdir=infra output -raw monthly_batch_function_name)
+aws lambda invoke --function-name "$MONTHLY_FUNCTION" \
+  --invocation-type Event --cli-binary-format raw-in-base64-out \
+  --payload '{"scheduledTime":"2031-01-31T15:10:00Z"}' /tmp/monthly-invoke.json
+aws logs tail "/aws/lambda/$MONTHLY_FUNCTION" --since 10m
+```
+
+この例は日本時間2031年2月1日0:10なので2031年1月分です。実際に確認する月の翌月1日0:10 JSTをオフセット付きで指定してください。入力欠落・不正・オフセットなしは失敗します。HTTP 202はキュー受理のみを意味します。メールの対象月、収入・支出合計、差額、全カテゴリの金額・構成比を同じ月の画面/APIと照合します。0件月は3合計0円・「支出内訳なし（0 円）」です。
+
+CloudWatch Logsは `/aws/lambda/<name_prefix>-monthly`、保持30日です。失敗時はErrorログの工程（入力・集計・本文生成・送信）、対象月、例外種別、起動境界のリクエストIDを確認します。例外メッセージ・本文・収支メモ・接続文字列・通知先は出力しません。起動境界はランタイムの自動例外記録に備えて元例外を安全な例外に置き換えます。DB取得失敗なら送信せず、SNS SDKの自動再試行も無効にし、SNS失敗は内部再送せず呼出元へ失敗を返します。
+
+SchedulerはLambda受理まで最大2回・最大24時間の配信再試行、受理後の処理エラーはLambda非同期実行が最大2回再試行します。スロットリング等の非同期キュー再試行はAWSの仕様に従います。重複送信防止・DLQはありません。送信成功後のタイムアウトや再起動でも重複し得るため、失敗ログだけを根拠に手動再送しないでください。再試行前の過去月編集で本文が変わる場合があります。DB・SNS障害試験は専用検証環境だけで行い、本番接続情報を書き換えません。
+
+### デプロイ権限、更新・復旧・削除
+
+実環境のIAM変更は人間が行います。既存デプロイロールに以下の管理権限を追加し、`<name_prefix>-monthly` 系の対象ARNへ限定してください。Lambda実行ロール自身には追加しません。
+
+- SNS: 対象トピックの `sns:CreateTopic` / `GetTopicAttributes` / `SetTopicAttributes` / `DeleteTopic` / `TagResource` / `UntagResource` / `ListTagsForResource` / `Subscribe` / `ListSubscriptionsByTopic`、対象購読の `GetSubscriptionAttributes` / `SetSubscriptionAttributes` / `Unsubscribe`。購読ARNはトピックARNに購読IDが付く形式です。
+- Scheduler: 対象グループの `scheduler:CreateScheduleGroup` / `GetScheduleGroup` / `DeleteScheduleGroup` / `ListTagsForResource` / `TagResource` / `UntagResource`、そのグループ内の対象スケジュールの `CreateSchedule` / `GetSchedule` / `UpdateSchedule` / `DeleteSchedule`。
+- IAM: バッチ用・Scheduler用の2ロールについて、既存API用と同じロール作成・取得・削除・タグ管理・信頼ポリシー更新・インラインポリシー管理の権限を追加します。`iam:PassRole` はバッチ用を `lambda.amazonaws.com`、Scheduler用を `scheduler.amazonaws.com` に限定します。
+- Lambda: 対象関数に既存API用の管理権限を適用し、`lambda:PutFunctionEventInvokeConfig` / `GetFunctionEventInvokeConfig` / `DeleteFunctionEventInvokeConfig` を追加します。
+- CloudWatch Logs: 対象ロググループの作成・取得・削除・保持期間・タグ管理を許可します。成果物S3には既存バケットの `monthly/*` プレフィックスも配置・更新・削除できるようにします。
+
+更新前は11章に従いAPIとバッチの両ZIP、コード、設定を同じリリースとして退避します。手動復旧では両ZIPと対応コード・通知先設定をそろえてplanを確認してからapplyします。CDで戻す場合は既存どおりrevertのPR・CI・production承認を通します。DBの巻き戻しはありません。接続Secretを変更した場合、APIとバッチ両方の環境変数更新をplanで確認します。
+
+削除前にSchedulerを無効化し、既に受理された非同期実行が残っていないか確認します。13章の削除対象に月次Lambda・非同期設定・Scheduler・グループ・両IAMロール/ポリシー・SNS購読/トピック・ロググループ・`aws_s3_object.monthly_zip` を含めます。ログ保持が必要なら削除前に退避します。成果物・stateバケットの保持と管理解除は13章の既存手順を適用し、DBや既存Secretは削除しません。
+
+- [ ] productionの `MONTHLY_NOTIFICATION_EMAIL` と手動tfvarsの通知先をそろえた
+- [ ] デプロイロール権限を対象リソースへ追加し、両ZIPの生成・plan/applyを確認した
+- [ ] SNS購読承認を完了し、手動非同期起動で対象月・全項目・0件月を確認した
+- [ ] CloudWatch LogsとSchedulerの有効状態・次の実行日時を確認した
+- [ ] 専用検証環境で失敗ログ・非同期再試行を確認し、重複する可能性を理解した
+
+仕様確認資料: [Schedulerの非同期Lambda起動](https://docs.aws.amazon.com/lambda/latest/dg/with-eventbridge-scheduler.html)、[予定日時プレースホルダー](https://docs.aws.amazon.com/scheduler/latest/UserGuide/managing-schedule-context-attributes.html)、[信頼条件はスケジュールグループARN](https://docs.aws.amazon.com/scheduler/latest/UserGuide/cross-service-confused-deputy-prevention.html)。

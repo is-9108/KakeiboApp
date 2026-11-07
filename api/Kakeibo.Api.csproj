@@ -17,5 +17,8 @@
 
   <ItemGroup>
     <Compile Remove="tests/**" />
+    <Compile Remove="batch/**" />
+    <Content Remove="batch/**" />
+    <None Remove="batch/**" />
   </ItemGroup>
 </Project>

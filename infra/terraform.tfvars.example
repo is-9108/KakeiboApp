@@ -19,3 +19,7 @@ cognito_app_client_id = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 # Lambda ZIP の場所（infra/ からの相対）。通常は既定値のまま。
 # api_zip_path = "../.artifacts/api.zip"
+
+# 実アドレスはGit管理外で設定し、届いたSNS購読確認メールを承認する。
+monthly_notification_email = "monthly@example.com"
+monthly_batch_zip_path     = "../.artifacts/monthly-batch.zip"

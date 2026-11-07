@@ -15,7 +15,7 @@ jobs:
     outputs:
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend == 'true' || steps.filter.outputs.shared == 'true' }}
       api: ${{ github.event_name == 'push' || steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true' }}
-      infra: ${{ github.event_name == 'push' || steps.filter.outputs.infra == 'true' || steps.filter.outputs.shared == 'true' }}
+      infra: ${{ github.event_name == 'push' || steps.filter.outputs.infra == 'true' || steps.filter.outputs.api == 'true' || steps.filter.outputs.shared == 'true' }}
     steps:
       - name: リポジトリを取得する
         uses: actions/checkout@v4
@@ -136,6 +136,9 @@ jobs:
 
       - name: Lambda パッケージを作成する
         run: ./infra/scripts/package-api.sh
+
+      - name: 月次バッチパッケージを作成する
+        run: ./infra/scripts/package-monthly-batch.sh
 
       - name: マイグレーション SQL を生成する
         run: ./infra/scripts/generate-migration-sql.sh
