@@ -1,0 +1,39 @@
+---
+name: review-merge
+description: コード・セキュリティ・テストの妥当性の3観点を独立実行・検証・統合し .ai/review-<n>.md に保存する。H3 の前に独立レビューするときに使う。
+argument-hint: "[Issue 番号]"
+disable-model-invocation: true
+---
+
+# 独立レビューの実行・統合
+
+呼び出し元は、レビュー対象の実装経緯・会話履歴・自己評価が混ざっていない新規 Claude Code セッションであること（再レビューも同様）。
+作業ルールは `CLAUDE.md`、観点・採用基準・テンプレートの正本は `docs/review.md`。
+
+## 1. 判断材料を集める
+
+`docs/review.md` §1 に従い Issue 本文・承認コメント、専用 Worktree・ブランチ、判断材料4点を確認する。`git log --oneline main..HEAD`、`git status --short`、`git diff main --stat`、`git diff main` と `git ls-files --others --exclude-standard` の未追跡ファイル内容を読む。既存レビューの最大番号に1を足して出力番号 n を決める（なければ1）。
+
+## 2. 3観点を独立実行する
+
+Agent ツールで `subagent_type: general-purpose` のサブエージェント3つを1メッセージで並行起動する。`fork` は使わない。互いの結果は渡さない。
+
+各担当にリポジトリパス・ブランチ・Issue 番号と、判断材料4点（Issue、`.ai/plan.md`、`.ai/report.md`、main との差分）、担当観点、`docs/review.md` の該当観点を渡す。全担当に書き込み禁止（コード・テスト・Git の状態も変更禁止）、読み取り目的のテスト実行は可と伝え、結果は親へ返させる。
+
+- コード担当: 利用できる場合は公式 `/code-review`（`--fix`・`--comment` なし）。
+- セキュリティ担当: 利用できる場合は公式 `/security-review`。対象外でも理由を返す。
+- テストの妥当性担当: 対応する公式コマンドはないため `docs/review.md` の観点で手動レビュー。
+
+公式コマンドが使えない・本文が得られない場合は同じ観点で手動レビューする。自動収集差分が空の場合も `git diff main` と未追跡ファイル内容を読む。未コミット変更を見落とさないよう、この指示を全担当に渡す。
+
+非対話の Agent 実行は確認済み（`docs/claude-code.md`）。利用できなければ単独の独立セッションで観点ごとに他の観点の結論を判断材料にせず確認し、縮退の理由・未検証事項を記録する。観点別の生結果を親が `.ai/review-<n>-code.raw.md`、`.ai/review-<n>-security.raw.md`、`.ai/review-<n>-test.raw.md` に保存する。
+
+## 3. 検証・統合する
+
+全結果の完了を待ち、`docs/review.md` §3 に従って各指摘を該当コード・テスト・文書で検証し、重複排除と採否判断を行う。不採用理由を残し、全受け入れ条件も照合する。ID はコード・テストの妥当性が C 系、セキュリティが S 系。テストの妥当性は観点を明記する。
+
+旧版の確度8以上という基準は、`/security-review` 使用時のみ参考とし、手動時も含め採用判断の正本は `docs/review.md`。数値だけで採用しない。
+
+## 4. 保存・報告する
+
+`docs/review.md` §4 のテンプレートで `.ai/review-<n>.md` に統合保存する（テンプレートをこのスキルへ複製しない）。`- [ ] 修正する` は未チェックのまま。チャットに重要度別件数・結果のパス・未検証条件を報告する。修正・commit・push・PR 作成は行わない。
