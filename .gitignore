@@ -42,6 +42,8 @@ infra/backend.s3.hcl
 # OS
 .DS_Store
 Thumbs.db
+# Claude Code のローカル専用設定（個人の権限設定などを含みうるため追跡しない）
+.claude/settings.local.json
 
 # workflow:start
 .ai/
