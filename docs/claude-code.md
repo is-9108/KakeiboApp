@@ -4,15 +4,17 @@
 
 この VM では 2026-11-07 に公式ネイティブインストーラ（stable）で導入・認証済み。実体は `~/.local/bin/claude`（2.1.311 で確認）、自動更新は stable チャンネル。PATH に `~/.local/bin` が含まれないため、絶対パスで起動する。
 
-認証はサブスクリプション＋ `claude setup-token` の1年有効 OAuth トークン。保管先は `~/.config/claude-code/oauth-token.env`（0600、`export CLAUDE_CODE_OAUTH_TOKEN=...` 形式）。実行前に読み込む。読み込まない場合、`claude auth status` は未ログインになる。トークンの値は文書・チャット・メモリ・成果物に書かず、表示もしない。ローテーション時は保管ファイルだけ差し替える。
+認証はサブスクリプション＋ `claude setup-token` の1年有効 OAuth トークン。保管先は `~/.config/claude-code/oauth-token.env`（0600、`export CLAUDE_CODE_OAUTH_TOKEN=...` 形式）、保管ディレクトリ `~/.config/claude-code/` は 0700 とする。読み込みと実行は同じサブシェル内で行う。読み込まない場合、`claude auth status` は未ログインになる。トークンの値は文書・チャット・メモリ・成果物に書かず、表示もしない。ローテーション時は保管ファイルだけ差し替える。
 
 ## 非対話実行
 
 対象 Issue の Worktree を cwd にする。`.ai/` はその直下に置く。
 
 ```sh
-source ~/.config/claude-code/oauth-token.env
-~/.local/bin/claude -p "<指示>" --output-format json < /dev/null
+(
+  source ~/.config/claude-code/oauth-token.env
+  ~/.local/bin/claude -p "<指示>" --output-format json < /dev/null
+)
 ```
 
 stdin は必ず閉じる。開いたままだと EOF 待ちで止まることがある。`--bare` は OAuth トークンを読まないため使わない。
