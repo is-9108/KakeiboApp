@@ -10,7 +10,7 @@
 3. `git log --oneline main..HEAD`、`git status --short`、`git diff main --stat`、`git diff main` を実行する。未コミット差分も含め、`git ls-files --others --exclude-standard` で列挙した未追跡ファイルの内容も読む。対象ブランチ・コミット・確認時点を記録する。
 4. 出力先は `.ai/review-<n>.md`。既存の最大番号に1を加え、なければ1とする。
 
-レビュー中はコード・テスト・Git の状態を変更しない。書き込めるのは `.ai/` 配下の Markdown だけ。読み取り目的のテスト実行はよい。修正・commit・push・PR 作成はレビュー工程では行わない。
+レビュー中はコード・テスト・Git の状態を変更しない。Claude Code の書き込み範囲は `CLAUDE.md` の「禁止事項」を正本として参照する。読み取り目的のテスト実行はよい。修正・commit・push・PR 作成はレビュー工程では行わない。
 
 ### 実施者とツール
 
