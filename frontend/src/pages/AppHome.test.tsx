@@ -2,6 +2,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import AppHome from './AppHome'
 import {
+  requestReceiptUploadUrl,
   AccessTokenRefreshError,
   ApiError,
   ApiValidationError,
@@ -44,6 +45,7 @@ vi.mock('../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/client')>()
   return {
     ...actual,
+    requestReceiptUploadUrl: vi.fn(),
     fetchEntries: vi.fn(),
     fetchSummary: vi.fn(),
     createEntry: vi.fn(),
@@ -962,4 +964,18 @@ it('既存収支をサブスクカテゴリに編集できる', async () => {
   fireEvent.change(screen.getByLabelText('カテゴリ'), { target: { value: 'サブスク' } })
   fireEvent.click(screen.getByRole('button', { name: '保存する' }))
   await waitFor(() => expect(updateEntry).toHaveBeenCalledWith(octEntry.id, expect.objectContaining({ category: 'サブスク' })))
+})
+
+it('月次画面にレシート操作を表示する', async () => {
+  await renderHome()
+  expect(screen.getByRole('button', { name: 'レシートから登録' })).toBeInTheDocument()
+})
+
+it('レシート署名要求の401でログアウトする', async () => {
+  vi.mocked(requestReceiptUploadUrl).mockRejectedValue(new AccessTokenRefreshError())
+  await renderHome()
+  fireEvent.change(screen.getByLabelText('レシート画像'), {
+    target: { files: [new File(['a'], 'receipt.png', { type: 'image/png' })] },
+  })
+  await waitFor(() => expect(signOutMock).toHaveBeenCalledTimes(1))
 })

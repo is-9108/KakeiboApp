@@ -219,3 +219,32 @@ export async function deleteSubscription(id: number): Promise<void> {
   const response = await sendRequest(`/api/subscriptions/${id}`, { method: 'DELETE' })
   await ensureOk(response)
 }
+
+export interface ReceiptUploadTarget {
+  uploadUrl: string
+  key: string
+  expiresAt: string
+  headers: Record<string, string>
+}
+
+/** APIには画像本体を送らず、形式とサイズのみ送る。 */
+export async function requestReceiptUploadUrl(file: Pick<File, 'type' | 'size'>): Promise<ReceiptUploadTarget> {
+  const response = await sendRequest('/api/receipts/upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contentType: file.type, size: file.size }),
+  })
+  await ensureOk(response)
+  return await response.json() as ReceiptUploadTarget
+}
+
+/** S3への直接送信にはCognitoのトークンを付けない。 */
+export async function uploadReceiptToS3(target: ReceiptUploadTarget, file: File): Promise<void> {
+  const response = await fetch(target.uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+    credentials: 'omit',
+  })
+  if (!response.ok) throw new ApiError('レシートのアップロードに失敗しました。', response.status)
+}

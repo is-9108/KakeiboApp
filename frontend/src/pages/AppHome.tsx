@@ -23,6 +23,7 @@ import {
   initialEntryDate,
   shiftMonth,
 } from '../domain/month'
+import ReceiptUpload from '../components/ReceiptUpload'
 import MonthNavigation from '../components/MonthNavigation'
 import MonthlySummary from '../components/MonthlySummary'
 import EntryList from '../components/EntryList'
@@ -341,6 +342,8 @@ export default function AppHome() {
           ログアウト
         </button>
       </header>
+
+      <ReceiptUpload onSessionExpired={signOut} />
 
       <MonthNavigation
         month={month}
