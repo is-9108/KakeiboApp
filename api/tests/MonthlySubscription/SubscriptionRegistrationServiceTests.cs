@@ -125,7 +125,11 @@ public class SubscriptionRegistrationServiceTests : IAsyncLifetime
         var entry = Assert.Single((await _client.GetFromJsonAsync<Entry[]>("/api/entries?month=2031-02"))!);
         var response = await _client.PutAsJsonAsync($"/api/entries/{entry.Id}", new
         {
-            date = "2031-02-02", type = "支出", category = "食費", amount = 2500, memo = "編集済み",
+            date = "2031-02-02",
+            type = "支出",
+            category = "食費",
+            amount = 2500,
+            memo = "編集済み",
         });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var updated = Assert.Single((await _client.GetFromJsonAsync<Entry[]>("/api/entries?month=2031-02"))!);
@@ -170,7 +174,9 @@ public class SubscriptionRegistrationServiceTests : IAsyncLifetime
         var saved = await db.SubscriptionRegistrations.AsNoTracking().SingleAsync();
         db.SubscriptionRegistrations.Add(new SubscriptionRegistration
         {
-            SubscriptionId = saved.SubscriptionId, TargetMonth = saved.TargetMonth, EntryId = saved.EntryId,
+            SubscriptionId = saved.SubscriptionId,
+            TargetMonth = saved.TargetMonth,
+            EntryId = saved.EntryId,
         });
         var exception = await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         Assert.Equal(PostgresErrorCodes.UniqueViolation, Assert.IsType<PostgresException>(exception.InnerException).SqlState);
@@ -214,7 +220,9 @@ public class SubscriptionRegistrationServiceTests : IAsyncLifetime
         await using var db = CreateDb();
         var subscriptions = names.Select((name, i) => new Subscription
         {
-            Name = name, Amount = 1000 + i, Memo = "収支に転記しないサブスクメモ",
+            Name = name,
+            Amount = 1000 + i,
+            Memo = "収支に転記しないサブスクメモ",
         }).ToArray();
         db.Subscriptions.AddRange(subscriptions);
         await db.SaveChangesAsync();

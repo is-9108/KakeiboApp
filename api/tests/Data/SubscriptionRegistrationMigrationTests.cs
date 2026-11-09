@@ -21,7 +21,11 @@ public class SubscriptionRegistrationMigrationTests(KakeiboApiTestFactory factor
         await migrator.MigrateAsync("20261104123318_AddSubscriptions");
         var entry = new Entry
         {
-            Date = new DateOnly(2031, 1, 15), Type = "支出", Category = "食費", Amount = 1500, Memo = "既存収支",
+            Date = new DateOnly(2031, 1, 15),
+            Type = "支出",
+            Category = "食費",
+            Amount = 1500,
+            Memo = "既存収支",
         };
         var subscription = new Subscription { Name = "既存サブスク", Amount = 2000, Memo = "既存メモ" };
         db.Entries.Add(entry);
