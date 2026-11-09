@@ -46,7 +46,7 @@
 - API の Lambda には `Cognito__Region`、`Cognito__UserPoolId`、`Cognito__AppClientId` を環境変数で渡します。
 - フロントはビルド時に `VITE_COGNITO_*` を取り込みます。実値は `frontend/.env.production.local`（`.gitignore` 済み）へ設定し、例は `frontend/.env.production.example` にあります。
 - 本番の Lambda は起動時マイグレーションを実行しません。`ASPNETCORE_ENVIRONMENT=Production` では `Database__RunMigrationsOnStartup` の値にかかわらず無効です。スキーマは `docs/deployment.md` の手順で冪等 SQL を手動適用します。
-- ブラウザは CloudFront の同一オリジンへアクセスするため、CORS 設定は追加しません。API Gateway の直 URL をブラウザから使う構成はサポート対象外です（curl 検証は可能）。
+- ブラウザは CloudFront の同一オリジンへアクセスするため、API に CORS 設定は追加しません。例外として、レシート用 S3 バケットだけは本番 CloudFront オリジンからの Content-Type 付き PUT を許可します。署名 URL の発行は既存の認証必須ポリシーで保護し、S3 への PUT に Cognito トークンは付けません。API Gateway の直 URL をブラウザから使う構成はサポート対象外です（curl 検証は可能）。
 
 ## ローカル環境での設定
 
