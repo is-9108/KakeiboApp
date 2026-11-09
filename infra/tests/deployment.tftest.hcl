@@ -84,7 +84,7 @@ run "deployment_plan" {
     monthly_notification_email = "monthly@example.com"
   }
 
-  # --- Lambda の実行形式と承認済み初期値 -------------------------------------
+  # --- レシート用バケット ---------------------------------------------------
   assert {
     condition = (
       aws_s3_bucket_public_access_block.receipts.block_public_acls &&
@@ -145,6 +145,7 @@ run "deployment_plan" {
     error_message = "署名権限とバケット設定が不正です。"
   }
 
+  # --- Lambda の実行形式と承認済み初期値 -------------------------------------
   assert {
     condition = (
       aws_lambda_function.api.runtime == "provided.al2023" &&
