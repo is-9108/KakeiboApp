@@ -1,3 +1,6 @@
+using Amazon;
+using Amazon.S3;
+using Kakeibo.Api.Services;
 using Kakeibo.Api.Authentication;
 using Kakeibo.Api.Data;
 using Kakeibo.Api.Endpoints;
@@ -19,6 +22,13 @@ builder.Services.AddAuthorization(options =>
         .RequireAuthenticatedUser()
         .Build();
 });
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client(new AmazonS3Config
+{
+    RegionEndpoint = RegionEndpoint.GetBySystemName(
+        builder.Configuration["AWS_REGION"] ?? "ap-northeast-1"),
+}));
+builder.Services.AddScoped<ReceiptUploadUrlService>();
 var app = builder.Build();
 
 // 本番ではDDLを実行しない。開発・テストはDatabase:RunMigrationsOnStartupで明示的に有効化する。
@@ -36,6 +46,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 
 app.MapEntriesEndpoints();
 app.MapSubscriptionsEndpoints();
+app.MapReceiptsEndpoints();
 
 app.Run();
 
