@@ -1378,3 +1378,47 @@ SchedulerはLambda受理まで最大2回・最大24時間の配信再試行、�
 - [ ] 専用検証環境で失敗ログ・非同期再試行を確認し、重複する可能性を理解した
 
 仕様確認資料: [Schedulerの非同期Lambda起動](https://docs.aws.amazon.com/lambda/latest/dg/with-eventbridge-scheduler.html)、[予定日時プレースホルダー](https://docs.aws.amazon.com/scheduler/latest/UserGuide/managing-schedule-context-attributes.html)、[信頼条件はスケジュールグループARN](https://docs.aws.amazon.com/scheduler/latest/UserGuide/cross-service-confused-deputy-prevention.html)。
+
+## 17. 月初のサブスク自動登録の設定と運用
+
+毎月1日0:05 JSTに登録専用Lambda `<name_prefix>-monthly-subscriptions` を非同期起動します。実行時点の全サブスクが対象で、予定日時 `scheduledTime` をJSTに換算した月の1日付で支出を登録します。既存の0:10 JSTの前月集計メールは変更しません。同じ `monthly-batch.zip` とスケジュールグループを共用し、登録用だけ `MonthlyBatch__Job=subscription` を設定します。DB接続はAPI・通知と同じSecret由来で、起動時マイグレーションは無効です。
+
+### 初回配置と手動非同期起動
+
+手動配置は、まず6章の手順で `./infra/scripts/generate-migration-sql.sh` を実行し、生成SQLを確認してdirect endpointへ適用します。`20261109000600_AddSubscriptionRegistrations` の台帳テーブル・ユニークインデックスが存在し、API用DBロールが台帳とシーケンスに必要な権限を持つことを確認してから、16章と同じ両ZIP生成・Terraform plan/applyを実施します。**マイグレーション適用はLambda配置より先**です。CDもマイグレーション→Lambda/Terraformの順です。
+
+以下は実環境で人間が実施します。実際に登録したい月へペイロードを置き換えてください。
+
+```bash
+SUBSCRIPTION_FUNCTION=$(terraform -chdir=infra output -raw monthly_subscription_function_name)
+aws lambda invoke --function-name "$SUBSCRIPTION_FUNCTION" \
+  --invocation-type Event --cli-binary-format raw-in-base64-out \
+  --payload '{"scheduledTime":"2031-01-31T15:05:00Z"}' /tmp/subscription-invoke.json
+aws logs tail "/aws/lambda/$SUBSCRIPTION_FUNCTION" --since 10m
+```
+
+この例は2031年2月1日0:05 JSTで、**2031年2月分**を登録します。通知バッチと異なり前月ではありません。過去月・未来月の入力も拒否せず、その月分が実際に登録されるため、誤指定に注意してください。入力欠落・不正形式・オフセットなしは失敗します。HTTP 202は受理のみで、処理成功を保証しません。
+
+ログ確認後、対象月の月次画面、または認証済みの `GET /api/entries?month=2031-02` で、日付=対象月1日、種別=支出、カテゴリ=サブスク、金額=サブスク金額、メモ=サブスク名を確認します。登録済み収支は画面で編集・削除できます。サブスク0件なら登録なしで正常終了します。
+
+同月の再実行・同時実行でも、台帳の `(subscription_id, target_month)` ユニーク制約で二重登録されません。収支を編集・削除しても台帳は残り、同月に再実行しても復活しません。登録後にサブスクを編集・削除しても収支は変わりません。台帳と収支は1トランザクションで登録し、失敗時は全体をロールバックします。
+
+専用ロググループ `/aws/lambda/<name_prefix>-monthly-subscriptions` は保持30日です。失敗時は工程・対象月・例外種別と起動境界のリクエストIDを確認します。接続文字列・金額・メモ・例外メッセージは出力しません。Schedulerの配信再試行は最大2回・最大24時間、Lambdaの処理エラー後の非同期再試行は最大2回です。失敗原因を解消後、同じ `scheduledTime` で再実行して結果を確認します。
+
+### デプロイ権限と更新・復旧・削除
+
+実環境のIAM変更は人間が行います。16章の月次系ポリシーの方針に従い、デプロイロールの管理権限に以下の対象を追加します。登録Lambdaの実行ロールは専用ログへの `logs:CreateLogStream` / `logs:PutLogEvents` のみで、SNS権限は不要です。
+
+- Lambda: `arn:aws:lambda:<REGION>:<ACCOUNT_ID>:function:<NAME_PREFIX>-monthly-subscriptions` に15章のAPI用の作成・取得・コード/設定更新・削除・タグ管理権限と、`lambda:PutFunctionEventInvokeConfig` / `lambda:GetFunctionEventInvokeConfig` / `lambda:DeleteFunctionEventInvokeConfig` を許可します。
+- IAM: `arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-monthly-subscriptions-lambda` と同じ接頭辞の `-scheduler` ロールへ、`iam:CreateRole` / `iam:GetRole` / `iam:DeleteRole` / `iam:UpdateRole` / `iam:UpdateAssumeRolePolicy` / `iam:ListRolePolicies` / `iam:GetRolePolicy` / `iam:PutRolePolicy` / `iam:DeleteRolePolicy` / `iam:ListAttachedRolePolicies` / `iam:ListInstanceProfilesForRole` / `iam:ListRoleTags` / `iam:TagRole` / `iam:UntagRole` を許可します。`iam:PassRole` はこの2ロールに限定し、`iam:PassedToService` をそれぞれ `lambda.amazonaws.com` / `scheduler.amazonaws.com` に限定します。
+- Scheduler: `arn:aws:scheduler:<REGION>:<ACCOUNT_ID>:schedule/<NAME_PREFIX>-monthly/<NAME_PREFIX>-monthly-subscriptions` に `scheduler:CreateSchedule` / `scheduler:GetSchedule` / `scheduler:UpdateSchedule` / `scheduler:DeleteSchedule` を許可します。既存グループ `<NAME_PREFIX>-monthly` の管理権限は16章の設定を再利用します。Scheduler実行ロールの信頼条件は同一アカウント・同グループARNに限定し、起動権限は登録Lambdaのみです。
+- CloudWatch Logs: `/aws/lambda/<NAME_PREFIX>-monthly-subscriptions` のロググループARNに `logs:CreateLogGroup` / `logs:DeleteLogGroup` / `logs:PutRetentionPolicy` / `logs:DeleteRetentionPolicy` / `logs:ListTagsForResource` / `logs:TagResource` / `logs:UntagResource` を許可します。`logs:DescribeLogGroups` 等の一覧取得は既存ポリシーと同様、リソース制限をサポートしないアクションのみ `Resource: "*"` の別Statementにします。運用者には対象ログの閲覧権限も付与します。
+
+ZIPは通知と共用なので成果物S3の追加バケット・プレフィックス権限は不要です。接続Secretの変更時はAPI・通知・登録の3関数の環境変数更新をplanで確認します。復旧は11・16章の同一リリースのコードと両ZIPを使い、DBを巻き戻しません。
+
+廃止・登録機能のロールバック前には登録Schedulerを無効化し、受理済みの非同期実行を確認します。13章の削除対象に登録Lambda・非同期設定・登録Scheduler・登録用の両IAMロール/インラインポリシー・専用ロググループを含めます。ログは必要に応じて退避します。通知が残る間は共用スケジュールグループと `aws_s3_object.monthly_zip` を削除しません。台帳を消すと再実行で再登録され得るため、台帳・収支データは保持します。
+
+- [ ] マイグレーションとDB権限の確認をLambda配置より先に完了した
+- [ ] デプロイ権限追加とplan/applyを確認した
+- [ ] 手動起動で対象月・登録値・同月再実行時の二重登録防止を確認した
+- [ ] 専用ログとSchedulerの有効状態・次回実行日時を確認した
