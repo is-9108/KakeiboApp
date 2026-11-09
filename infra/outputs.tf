@@ -49,3 +49,8 @@ output "monthly_subscription_function_name" {
   description = "月初のサブスク登録の手動非同期起動に使うLambda関数名。"
   value       = aws_lambda_function.monthly_subscription.function_name
 }
+
+output "receipts_bucket_name" {
+  description = "一時保存するレシート画像用 S3 バケット"
+  value       = aws_s3_bucket.receipts.bucket
+}
