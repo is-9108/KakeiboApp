@@ -44,3 +44,8 @@ output "monthly_notification_topic_arn" {
   description = "購読状態の確認に使うSNSトピックARN。"
   value       = aws_sns_topic.monthly.arn
 }
+
+output "monthly_subscription_function_name" {
+  description = "月初のサブスク登録の手動非同期起動に使うLambda関数名。"
+  value       = aws_lambda_function.monthly_subscription.function_name
+}
