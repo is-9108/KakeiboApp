@@ -1,4 +1,4 @@
-/* 月次画面（issue #6）。モバイルファースト、900px以上で一覧とフォームを2列にする。 */
+/* 月次画面。モバイルファースト、すべての画面幅でフォームと一覧を縦積みにする。 */
 .app-home {
   box-sizing: border-box;
   max-width: 1200px;
@@ -375,11 +375,6 @@
 @media (min-width: 900px) {
   .app-home {
     padding: 2rem;
-  }
-
-  .app-home__columns {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
   }
 }
 
