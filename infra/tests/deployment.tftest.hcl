@@ -64,6 +64,14 @@ mock_provider "aws" {
   }
 }
 
+override_resource {
+  target          = aws_s3_bucket.receipts
+  override_during = plan
+  values = {
+    arn = "arn:aws:s3:::mock-receipts-bucket"
+  }
+}
+
 run "deployment_plan" {
   command = plan
 
