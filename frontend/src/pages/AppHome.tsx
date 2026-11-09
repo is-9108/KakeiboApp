@@ -374,12 +374,6 @@ export default function AppHome() {
         <>
           <MonthlySummary summary={data.summary} />
           <div className="app-home__columns">
-            <EntryList
-              entries={data.entries}
-              disabled={busy}
-              onEdit={handleEdit}
-              onDelete={handleDeleteRequest}
-            />
             <EntryForm
               mode={editingEntry !== null ? 'edit' : 'create'}
               editKey={editKey}
@@ -394,6 +388,12 @@ export default function AppHome() {
               onSubmit={(input) => void handleSubmit(input)}
               onCancel={handleCancelEdit}
               onReload={formErrorCanReload ? handleFormReload : undefined}
+            />
+            <EntryList
+              entries={data.entries}
+              disabled={busy}
+              onEdit={handleEdit}
+              onDelete={handleDeleteRequest}
             />
           </div>
         </>

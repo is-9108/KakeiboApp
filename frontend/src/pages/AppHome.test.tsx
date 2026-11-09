@@ -154,6 +154,21 @@ beforeEach(() => {
 })
 
 describe('月次画面の取得と表示', () => {
+  it.each([
+    { 状態: '一覧が空の月', entries: [] },
+    { 状態: '項目がある月', entries: [octEntry] },
+  ])('$状態でも月次サマリー、登録フォーム、収支一覧の順に表示する', async ({ entries }) => {
+    mockMonth(entries)
+    await renderHome()
+
+    const summaryHeading = screen.getByRole('heading', { name: '月次集計' })
+    const formHeading = screen.getByRole('heading', { name: '収支の登録' })
+    const listHeading = screen.getByRole('heading', { name: '収支一覧' })
+
+    expect(summaryHeading.compareDocumentPosition(formHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(formHeading.compareDocumentPosition(listHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('shows the JST current month and requests both APIs for it（T01）', async () => {
     await renderHome()
 
@@ -435,6 +450,11 @@ describe('登録・編集・削除', () => {
     await screen.findByRole('heading', { name: '収支の編集' })
 
     expect(screen.getByRole('heading', { name: '収支の編集' })).toHaveFocus()
+    expect(
+      screen.getByRole('heading', { name: '収支の編集' }).compareDocumentPosition(
+        screen.getByRole('heading', { name: '収支一覧' }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
     expect(screen.getByLabelText('日付')).toHaveValue('2026-10-20')
     expect(screen.getByLabelText('種別')).toHaveValue('支出')
     expect(screen.getByLabelText('金額')).toHaveValue('1200')
