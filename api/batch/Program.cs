@@ -14,6 +14,33 @@ public static class BatchProgram
     public static async Task Main()
     {
         using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        if (MonthlyBatchJobResolver.Resolve(Environment.GetEnvironmentVariable("MonthlyBatch__Job")) == MonthlyBatchJob.Subscription)
+        {
+            var registrationLogger = loggerFactory.CreateLogger<SubscriptionRegistrationHandler>();
+            async Task InvokeRegistration(MonthlyNotificationRequest request, ILambdaContext context)
+            {
+                try
+                {
+                    async Task<SubscriptionRegistrationResult> Register(DateOnly targetMonth, CancellationToken cancellationToken)
+                    {
+                        var options = new DbContextOptionsBuilder<KakeiboDbContext>()
+                            .UseNpgsql(Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")).Options;
+                        await using var db = new KakeiboDbContext(options);
+                        return await new SubscriptionRegistrationService(db).RegisterAsync(targetMonth, cancellationToken);
+                    }
+                    await new SubscriptionRegistrationHandler(Register, registrationLogger).HandleAsync(request);
+                }
+                catch (Exception exception)
+                {
+                    registrationLogger.LogError("月初サブスク登録起動失敗 リクエストID={RequestId} 例外種別={ExceptionType}", context.AwsRequestId, exception.GetType().Name);
+                    // ランタイムが例外を自動記録するため、元例外・InnerExceptionを境界外へ出さない。
+                    throw new InvalidOperationException("月初サブスク登録に失敗しました。工程ログを確認してください。");
+                }
+            }
+            await LambdaBootstrapBuilder.Create<MonthlyNotificationRequest>(InvokeRegistration, new DefaultLambdaJsonSerializer()).Build().RunAsync();
+            return;
+        }
+
         var logger = loggerFactory.CreateLogger<MonthlyNotificationHandler>();
         async Task Invoke(MonthlyNotificationRequest request, ILambdaContext context)
         {

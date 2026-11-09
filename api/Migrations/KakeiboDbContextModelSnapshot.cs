@@ -91,6 +91,35 @@ namespace Kakeibo.Api.Migrations
 
                     b.ToTable("subscriptions", (string)null);
                 });
+
+            modelBuilder.Entity("Kakeibo.Api.Models.SubscriptionRegistration", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EntryId")
+                        .HasColumnType("integer")
+                        .HasColumnName("entry_id");
+
+                    b.Property<int>("SubscriptionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("subscription_id");
+
+                    b.Property<DateOnly>("TargetMonth")
+                        .HasColumnType("date")
+                        .HasColumnName("target_month");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubscriptionId", "TargetMonth")
+                        .IsUnique();
+
+                    b.ToTable("subscription_registrations", (string)null);
+                });
 #pragma warning restore 612, 618
         }
     }
