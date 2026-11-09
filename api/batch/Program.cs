@@ -14,7 +14,7 @@ public static class BatchProgram
     public static async Task Main()
     {
         using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        if (Environment.GetEnvironmentVariable("MonthlyBatch__Job") == "subscription")
+        if (MonthlyBatchJobResolver.Resolve(Environment.GetEnvironmentVariable("MonthlyBatch__Job")) == MonthlyBatchJob.Subscription)
         {
             var registrationLogger = loggerFactory.CreateLogger<SubscriptionRegistrationHandler>();
             async Task InvokeRegistration(MonthlyNotificationRequest request, ILambdaContext context)
