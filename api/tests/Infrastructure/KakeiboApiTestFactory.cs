@@ -77,15 +77,10 @@ public sealed class KakeiboApiTestFactory : WebApplicationFactory<Program>
             services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client(
                 new BasicAWSCredentials("receipt-test-access", "receipt-test-secret"),
                 new AmazonS3Config { RegionEndpoint = RegionEndpoint.APNortheast1 }));
-            // 実CognitoのJWKSエンドポイントにアクセスさせない。
+            // 実CognitoのJWKSエンドポイントへのアクセス・取得を封じる。
             // 検証鍵をローカル鍵（TestSigningKeys）に差し替え、発行者はテスト用User Poolに合わせる。
             services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
             {
-                services.RemoveAll<IAmazonS3>();
-            services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client(
-                new BasicAWSCredentials("receipt-test-access", "receipt-test-secret"),
-                new AmazonS3Config { RegionEndpoint = RegionEndpoint.APNortheast1 }));
-            // 実CognitoのJWKS取得を封じ、検証鍵をローカル鍵に差し替える
                 options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(_openIdConnectConfiguration);
                 options.TokenValidationParameters.IssuerSigningKeys = _openIdConnectConfiguration.SigningKeys;
                 options.TokenValidationParameters.ValidIssuer = TestTokenFactory.Issuer;
