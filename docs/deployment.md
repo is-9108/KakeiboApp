@@ -35,7 +35,7 @@ Terraform は CloudFormation スタックを使いません。初回の実 AWS �
 ```
 
 - S3 はウェブサイトホスティングを使わず、Block Public Access を全有効にします。CloudFront だけが OAC で読み取ります。
-- API は同一 CloudFront オリジン配下の `/api` で提供するため、既存フロントの相対 URL を変更しません。CORS は追加しません。
+- API は同一 CloudFront オリジン配下の `/api` で提供するため、既存フロントの相対 URL を変更しません。API に CORS は追加しません。レシート用 S3 バケットのみ本番 CloudFront オリジンからの PUT を許可します。
 - API Gateway の JWT Authorizer は使わず、既存の ASP.NET Core Cognito 認証で検証します。
 - Lambda は `provided.al2023`、`linux-x64` の自己完結 ZIP、`bootstrap` 実行ファイルです。通常のローカル実行（Kestrel）は従来どおりです。
 - Lambda の起動時マイグレーションは本番では無効です。スキーマは CD または手動で明示適用した SQL で管理します。
@@ -1422,3 +1422,25 @@ ZIPは通知と共用なので成果物S3の追加バケット・プレフィッ
 - [ ] デプロイ権限追加とplan/applyを確認した
 - [ ] 手動起動で対象月・登録値・同月再実行時の二重登録防止を確認した
 - [ ] 専用ログとSchedulerの有効状態・次回実行日時を確認した
+
+
+## 18. レシート画像の一時保存
+
+`receipts_bucket_name` output が示す非公開バケットに、SPA が署名付き URL で直接 PUT します。API は認証済みの `POST /api/receipts/upload-url` で署名だけを発行し、画像本体を受け取りません。Lambda の `Receipts__BucketName` は Terraform が設定します。未設定でも API は起動し、この操作だけが 500 になります。
+
+JPEG・PNG・WebP の 1 バイト〜10 MiB を画面と API で検証します。API のサイズは自己申告で、S3 側ではサイズ上限を強制しません。キーは `receipts/<GUID>.<拡張子>`、署名は Content-Type を含む PUT 専用・5 分です。URL は有効期限内の認証情報として扱い、ログや外部へ共有しないでください。
+
+バケットは公開アクセス全ブロック・AES256 暗号化・BucketOwnerEnforced、全オブジェクトと未完了マルチパートを 7 日で削除します。ライフサイクルによる削除は即時ではありません。`force_destroy=false`、`prevent_destroy` は付けません。削除時はバケットを空にする必要があります。API ロールにはこのバケットの `receipts/*` への `s3:PutObject` のみを追加します。
+
+デプロイ実行主体は、このバケットに既存の作成・暗号化・所有者・公開ブロック・タグ管理権限に加え、`s3:GetBucketCORS` / `s3:PutBucketCORS` / `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` を必要とします。API ロールのインラインポリシー管理には `iam:GetRolePolicy` / `iam:PutRolePolicy` / `iam:DeleteRolePolicy` が必要です。権限変更と apply はユーザーが行います。
+
+Terraform テストは新バケットの公開ブロック・暗号化・所有者・命名・削除設定・7 日ルール・CORS・PutObject 限定権限・Lambda 環境変数を検証します。既存の API Gateway の CORS なしと既存ロールの権限検証も維持します。
+
+apply 後はユーザーが以下を確認してください。
+
+- 本番画面からの PUT 成功と S3 オブジェクト作成
+- 別オリジンからの PUT が CORS で拒否されること（localhost は許可しません）
+- 5 分後の URL および Content-Type を変更した PUT が 403 になること
+- ライフサイクルでの削除とスマホのカメラ起動
+
+画像解析や収支フォームへの反映は後続 Issue の対象です。

@@ -1,3 +1,7 @@
+using Amazon;
+using Amazon.Runtime;
+using Amazon.S3;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -25,6 +29,8 @@ public sealed class KakeiboApiTestFactory : WebApplicationFactory<Program>
     private readonly string _testConnectionString;
     private readonly TestTokenFactory _tokenFactory;
     private readonly OpenIdConnectConfiguration _openIdConnectConfiguration;
+    private readonly object _databaseCreationLock = new();
+    private bool _databaseCreated;
 
     public KakeiboApiTestFactory()
     {
@@ -53,7 +59,15 @@ public sealed class KakeiboApiTestFactory : WebApplicationFactory<Program>
     // アプリ起動前にテスト用DBを作る。テーブルはProgram.csのMigrate()が作成する
     protected override IHost CreateHost(IHostBuilder builder)
     {
-        CreateTestDatabase();
+        lock (_databaseCreationLock)
+        {
+            if (!_databaseCreated)
+            {
+                CreateTestDatabase();
+                _databaseCreated = true;
+            }
+        }
+
         return base.CreateHost(builder);
     }
 
@@ -62,17 +76,21 @@ public sealed class KakeiboApiTestFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:DefaultConnection", _testConnectionString);
         // テストではProgram.csの起動時マイグレーションを明示的に有効化する（本番既定は無効）。
         builder.UseSetting("Database:RunMigrationsOnStartup", "true");
+        builder.UseSetting("Receipts:BucketName", "kakeibo-test-receipts");
         builder.UseSetting("Cognito:Region", "us-east-1");
         builder.UseSetting("Cognito:UserPoolId", "us-east-1_testpool");
         builder.UseSetting("Cognito:AppClientId", TestTokenFactory.AppClientId);
 
         builder.ConfigureServices(services =>
         {
-            // 実CognitoのJWKSエンドポイントにアクセスさせない。
+            services.RemoveAll<IAmazonS3>();
+            services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client(
+                new BasicAWSCredentials("receipt-test-access", "receipt-test-secret"),
+                new AmazonS3Config { RegionEndpoint = RegionEndpoint.APNortheast1 }));
+            // 実CognitoのJWKSエンドポイントへのアクセス・取得を封じる。
             // 検証鍵をローカル鍵（TestSigningKeys）に差し替え、発行者はテスト用User Poolに合わせる。
             services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
             {
-                // 実CognitoのJWKS取得を封じ、検証鍵をローカル鍵に差し替える
                 options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(_openIdConnectConfiguration);
                 options.TokenValidationParameters.IssuerSigningKeys = _openIdConnectConfiguration.SigningKeys;
                 options.TokenValidationParameters.ValidIssuer = TestTokenFactory.Issuer;

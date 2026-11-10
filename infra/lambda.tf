@@ -1,4 +1,4 @@
-# Lambda 実行ロール。ログ書き込みだけを許可し、Secrets Manager の読み取り権限は付けない。
+# Lambda 実行ロール。ログ書き込みとレシートのPUT署名を許可する。Secrets Manager の読み取り権限は付けない。
 # 接続文字列は apply 時に環境変数へ解決される。
 resource "aws_iam_role" "api" {
   name = "${var.name_prefix}-api-lambda"
@@ -58,6 +58,7 @@ resource "aws_lambda_function" "api" {
   # provided.al2023 には libicu が無いため、.NET を invariant モードで起動させる。
   environment {
     variables = {
+      Receipts__BucketName                  = aws_s3_bucket.receipts.bucket
       ASPNETCORE_ENVIRONMENT                = "Production"
       Database__RunMigrationsOnStartup      = "false"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = "1"

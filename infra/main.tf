@@ -10,6 +10,7 @@ locals {
   account_id = data.aws_caller_identity.current.account_id
 
   # バケット名はグローバルに一意にする必要があるため、アカウント ID とリージョンを含める。
+  receipts_bucket_name = "${var.name_prefix}-receipts-${local.account_id}-${var.aws_region}"
   site_bucket_name     = "${var.name_prefix}-site-${local.account_id}-${var.aws_region}"
   artifact_bucket_name = "${var.name_prefix}-artifacts-${local.account_id}-${var.aws_region}"
 

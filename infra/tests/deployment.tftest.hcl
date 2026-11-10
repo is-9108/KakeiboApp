@@ -64,6 +64,14 @@ mock_provider "aws" {
   }
 }
 
+override_resource {
+  target          = aws_s3_bucket.receipts
+  override_during = plan
+  values = {
+    arn = "arn:aws:s3:::mock-receipts-bucket"
+  }
+}
+
 run "deployment_plan" {
   command = plan
 
@@ -74,6 +82,67 @@ run "deployment_plan" {
     api_zip_path               = "tests/fixtures/api.zip.placeholder"
     monthly_batch_zip_path     = "tests/fixtures/monthly-batch.zip.placeholder"
     monthly_notification_email = "monthly@example.com"
+  }
+
+  # --- レシート用バケット ---------------------------------------------------
+  assert {
+    condition = (
+      aws_s3_bucket_public_access_block.receipts.block_public_acls &&
+      aws_s3_bucket_public_access_block.receipts.block_public_policy &&
+      aws_s3_bucket_public_access_block.receipts.ignore_public_acls &&
+      aws_s3_bucket_public_access_block.receipts.restrict_public_buckets
+    )
+    error_message = "レシートの公開アクセスを全て拒否する必要があります。"
+  }
+
+  assert {
+    condition = (
+      !aws_s3_bucket.receipts.force_destroy &&
+      length(aws_s3_bucket.receipts.bucket) <= 63 &&
+      can(regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$", aws_s3_bucket.receipts.bucket)) &&
+      aws_s3_bucket.receipts.bucket != aws_s3_bucket.site.bucket &&
+      aws_s3_bucket.receipts.bucket != aws_s3_bucket.artifacts.bucket
+    )
+    error_message = "レシートバケットの命名と削除保護が不正です。"
+  }
+
+  assert {
+    condition = (
+      one(aws_s3_bucket_server_side_encryption_configuration.receipts.rule).apply_server_side_encryption_by_default[0].sse_algorithm == "AES256" &&
+      one(aws_s3_bucket_ownership_controls.receipts.rule).object_ownership == "BucketOwnerEnforced"
+    )
+    error_message = "暗号化と所有者強制が必要です。"
+  }
+
+  assert {
+    condition = (
+      length(aws_s3_bucket_lifecycle_configuration.receipts.rule) == 1 &&
+      one(aws_s3_bucket_lifecycle_configuration.receipts.rule).status == "Enabled" &&
+      one(aws_s3_bucket_lifecycle_configuration.receipts.rule).expiration[0].days == 7 &&
+      one(aws_s3_bucket_lifecycle_configuration.receipts.rule).filter[0].prefix == "" &&
+      one(aws_s3_bucket_lifecycle_configuration.receipts.rule).abort_incomplete_multipart_upload[0].days_after_initiation == 7
+    )
+    error_message = "全レシートと未完了アップロードを7日で削除する必要があります。"
+  }
+
+  assert {
+    condition = (
+      length(aws_s3_bucket_cors_configuration.receipts.cors_rule) == 1 &&
+      one(aws_s3_bucket_cors_configuration.receipts.cors_rule).allowed_methods == toset(["PUT"]) &&
+      one(aws_s3_bucket_cors_configuration.receipts.cors_rule).allowed_origins == toset(["https://${aws_cloudfront_distribution.site.domain_name}"]) &&
+      one(aws_s3_bucket_cors_configuration.receipts.cors_rule).allowed_headers == toset(["Content-Type"])
+    )
+    error_message = "本番オリジンからのPUTだけを許可する必要があります。"
+  }
+
+  assert {
+    condition = (
+      length(jsondecode(aws_iam_role_policy.api_receipts.policy).Statement) == 1 &&
+      jsondecode(aws_iam_role_policy.api_receipts.policy).Statement[0].Action == ["s3:PutObject"] &&
+      jsondecode(aws_iam_role_policy.api_receipts.policy).Statement[0].Resource == "${aws_s3_bucket.receipts.arn}/receipts/*" &&
+      aws_lambda_function.api.environment[0].variables["Receipts__BucketName"] == aws_s3_bucket.receipts.bucket
+    )
+    error_message = "署名権限とバケット設定が不正です。"
   }
 
   # --- Lambda の実行形式と承認済み初期値 -------------------------------------

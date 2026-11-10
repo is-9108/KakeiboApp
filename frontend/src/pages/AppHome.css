@@ -381,3 +381,18 @@
 .app-home__header a { color: #1d4ed8; padding: .5rem 0; }
 .app-home__header a:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
 .app-home__header a[aria-disabled="true"] { opacity: .55; }
+
+.receipt-upload {
+  margin-block: 1rem;
+}
+
+.receipt-upload button {
+  min-height: 44px;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .receipt-upload button {
+    width: auto;
+  }
+}
