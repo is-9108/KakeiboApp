@@ -29,6 +29,8 @@ public sealed class KakeiboApiTestFactory : WebApplicationFactory<Program>
     private readonly string _testConnectionString;
     private readonly TestTokenFactory _tokenFactory;
     private readonly OpenIdConnectConfiguration _openIdConnectConfiguration;
+    private readonly object _databaseCreationLock = new();
+    private bool _databaseCreated;
 
     public KakeiboApiTestFactory()
     {
@@ -57,7 +59,15 @@ public sealed class KakeiboApiTestFactory : WebApplicationFactory<Program>
     // アプリ起動前にテスト用DBを作る。テーブルはProgram.csのMigrate()が作成する
     protected override IHost CreateHost(IHostBuilder builder)
     {
-        CreateTestDatabase();
+        lock (_databaseCreationLock)
+        {
+            if (!_databaseCreated)
+            {
+                CreateTestDatabase();
+                _databaseCreated = true;
+            }
+        }
+
         return base.CreateHost(builder);
     }
 
