@@ -15,8 +15,27 @@ public class KakeiboDbContext(DbContextOptions<KakeiboDbContext> options) : DbCo
     /// <summary>月初のサブスク登録台帳。</summary>
     public DbSet<SubscriptionRegistration> SubscriptionRegistrations => Set<SubscriptionRegistration>();
 
+    /// <summary>レシート解析ジョブ。</summary>
+    public DbSet<ReceiptAnalysisJob> ReceiptAnalysisJobs => Set<ReceiptAnalysisJob>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<ReceiptAnalysisJob>(entity =>
+        {
+            entity.ToTable("receipt_analysis_jobs");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Id).HasColumnName("id");
+            entity.Property(r => r.ObjectKey).HasColumnName("object_key").HasMaxLength(100);
+            entity.Property(r => r.Status).HasColumnName("status").HasMaxLength(10);
+            entity.Property(r => r.ReceiptDate).HasColumnName("receipt_date").HasColumnType("date");
+            entity.Property(r => r.TotalAmount).HasColumnName("total_amount");
+            entity.Property(r => r.StoreName).HasColumnName("store_name").HasMaxLength(100);
+            entity.Property(r => r.Category).HasColumnName("category").HasMaxLength(20);
+            entity.Property(r => r.CreatedAt).HasColumnName("created_at");
+            entity.Property(r => r.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(r => r.ObjectKey).IsUnique();
+        });
+
         modelBuilder.Entity<SubscriptionRegistration>(entity =>
         {
             entity.ToTable("subscription_registrations");

@@ -6,11 +6,14 @@ using System.Text.Json;
 using System.Text;
 using Amazon.S3.Model;
 using Amazon.S3;
+using Kakeibo.Api.Data;
 using Kakeibo.Api.Services;
 using Kakeibo.Api.Tests.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Kakeibo.Api.Tests.Receipts;
 
@@ -29,6 +32,18 @@ public class ReceiptUploadUrlTests(KakeiboApiTestFactory factory)
             "/api/receipts/upload-url", new { contentType = type, size, key = "evil/key" });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<KakeiboDbContext>();
+        var id = body.GetProperty("jobId").GetGuid();
+        var job = await db.ReceiptAnalysisJobs.SingleAsync(x => x.Id == id);
+        Assert.Equal("待機中", job.Status);
+        Assert.Null(job.ReceiptDate);
+        Assert.Null(job.TotalAmount);
+        Assert.Null(job.StoreName);
+        Assert.Null(job.Category);
+        Assert.Equal(job.CreatedAt, job.UpdatedAt);
+        Assert.InRange(job.CreatedAt, DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow);
+        Assert.Equal(body.GetProperty("key").GetString(), job.ObjectKey);
         var key = body.GetProperty("key").GetString()!;
         Assert.Matches($"^receipts/[0-9a-f]{{32}}\\.{extension}$", key);
         var url = new Uri(body.GetProperty("uploadUrl").GetString()!);
@@ -46,6 +61,7 @@ public class ReceiptUploadUrlTests(KakeiboApiTestFactory factory)
             "/api/receipts/upload-url", new { contentType = type, size });
         var other = await second.Content.ReadFromJsonAsync<JsonElement>();
         Assert.NotEqual(key, other.GetProperty("key").GetString());
+        Assert.NotEqual(id, other.GetProperty("jobId").GetGuid());
     }
 
     [Theory]
@@ -63,9 +79,13 @@ public class ReceiptUploadUrlTests(KakeiboApiTestFactory factory)
     {
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = factory.CreateBearerHeader();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<KakeiboDbContext>();
+        var before = await db.ReceiptAnalysisJobs.CountAsync();
         var response = await client.PostAsync("/api/receipts/upload-url",
             new StringContent(json, Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(before, await db.ReceiptAnalysisJobs.CountAsync());
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
         var field = json.Contains("image/jpeg") ? "size" : "contentType";
         Assert.True(problem.GetProperty("errors").TryGetProperty(field, out _));
@@ -100,10 +120,14 @@ public class ReceiptUploadUrlTests(KakeiboApiTestFactory factory)
                 })));
         using var client = application.CreateClient();
         client.DefaultRequestHeaders.Authorization = factory.CreateBearerHeader();
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<KakeiboDbContext>();
+        var before = await db.ReceiptAnalysisJobs.CountAsync();
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health")).StatusCode);
         var response = await client.PostAsJsonAsync(
             "/api/receipts/upload-url", new { contentType = "image/png", size = 1 });
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(before, await db.ReceiptAnalysisJobs.CountAsync());
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

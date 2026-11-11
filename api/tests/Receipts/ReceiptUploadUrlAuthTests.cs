@@ -3,8 +3,10 @@ using System.Net.Http.Json;
 using System.Net;
 using System.Reflection;
 using Amazon.S3;
+using Kakeibo.Api.Data;
 using Kakeibo.Api.Tests.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -31,9 +33,13 @@ public class ReceiptUploadUrlAuthTests(KakeiboApiTestFactory factory)
         if (kind == "改ざん")
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
                 "Bearer", factory.Tokens.CreateAccessToken(signingKey: TestSigningKeys.Secondary).Value);
+        using var scope = application.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<KakeiboDbContext>();
+        var before = await db.ReceiptAnalysisJobs.CountAsync();
         var response = await client.PostAsJsonAsync(
             "/api/receipts/upload-url", new { contentType = "image/jpeg", size = 1 });
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Null(((ReceiptUploadUrlTests.SigningProxy)s3).Request);
+        Assert.Equal(before, await db.ReceiptAnalysisJobs.CountAsync());
     }
 }
