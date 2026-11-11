@@ -54,3 +54,8 @@ output "receipts_bucket_name" {
   description = "一時保存するレシート画像用 S3 バケット"
   value       = aws_s3_bucket.receipts.bucket
 }
+
+output "receipt_analysis_function_name" {
+  description = "レシート解析Lambdaの関数名。"
+  value       = aws_lambda_function.receipt_analysis.function_name
+}

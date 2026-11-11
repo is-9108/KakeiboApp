@@ -23,3 +23,6 @@ cognito_app_client_id = "xxxxxxxxxxxxxxxxxxxxxxxxxx"
 # 実アドレスはGit管理外で設定し、届いたSNS購読確認メールを承認する。
 monthly_notification_email = "monthly@example.com"
 monthly_batch_zip_path     = "../.artifacts/monthly-batch.zip"
+
+# レシート解析モデル（既定値を使う場合は指定不要）
+# receipt_analysis_model_id = "jp.anthropic.claude-haiku-4-5-20251001-v1:0"

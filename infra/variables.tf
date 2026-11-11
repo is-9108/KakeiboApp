@@ -60,3 +60,13 @@ variable "monthly_batch_zip_path" {
   type        = string
   default     = "../.artifacts/monthly-batch.zip"
 }
+
+variable "receipt_analysis_model_id" {
+  description = "レシート画像を解析するClaudeの推論プロファイルID。既定は日本国内のHaiku 4.5。"
+  type        = string
+  default     = "jp.anthropic.claude-haiku-4-5-20251001-v1:0"
+  validation {
+    condition     = can(regex("^(jp|apac)\\.anthropic\\.claude-[a-z0-9.:-]+$", var.receipt_analysis_model_id))
+    error_message = "jpまたはapacで始まるClaudeの推論プロファイルIDを指定してください。"
+  }
+}
