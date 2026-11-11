@@ -20,6 +20,8 @@ public sealed class S3ReceiptImageReader(IAmazonS3 s3) : IReceiptImageReader
             _ => throw new InvalidOperationException("対応していない画像形式です。"),
         };
         using var response = await s3.GetObjectAsync(new GetObjectRequest { BucketName = bucket, Key = key }, cancellationToken);
+        if (response.ContentLength > ReceiptAnalysisHandler.MaximumImageBytes)
+            throw new InvalidOperationException("画像サイズが上限を超えています。");
         using var buffer = new MemoryStream();
         await response.ResponseStream.CopyToAsync(buffer, cancellationToken);
         return new ReceiptImage(buffer.ToArray(), format);

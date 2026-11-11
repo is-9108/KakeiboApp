@@ -36,7 +36,7 @@ public class ReceiptAnalysisHandlerTests(KakeiboApiTestFactory factory) : IClass
             Records = records.Select(x => new { s3 = new { bucket = new { name = x.Bucket }, @object = new { key = x.Key } } }),
         }))!;
 
-    private ReceiptAnalysisHandler Handler(ImageReader reader, Model model, Logger? logger = null) =>
+    private ReceiptAnalysisHandler Handler(IReceiptImageReader reader, Model model, Logger? logger = null) =>
         new(_ => Task.FromResult(CreateDb()), reader, model, "対象バケット", new Clock(), logger ?? new Logger());
 
     [Theory]
@@ -133,6 +133,19 @@ public class ReceiptAnalysisHandlerTests(KakeiboApiTestFactory factory) : IClass
         await using var db = CreateDb();
         Assert.Equal(status, (await db.ReceiptAnalysisJobs.FindAsync(job.Id))!.Status);
         Assert.Equal(calls, model.Calls);
+    }
+
+    [Fact]
+    public async Task S3のサイズ超過例外ではモデルを呼ばず失敗にする()
+    {
+        var job = await SeedAsync();
+        var sdk = System.Reflection.DispatchProxy.Create<Amazon.S3.IAmazonS3, BedrockReceiptModelClientTests.ImageProxy>();
+        ((BedrockReceiptModelClientTests.ImageProxy)sdk).ContentLength = 3_750_001;
+        var model = new Model();
+        await Handler(new S3ReceiptImageReader(sdk), model).HandleAsync(Event(("対象バケット", job.ObjectKey)));
+        await using var db = CreateDb();
+        Assert.Equal("失敗", (await db.ReceiptAnalysisJobs.FindAsync(job.Id))!.Status);
+        Assert.Equal(0, model.Calls);
     }
 
     [Fact]
