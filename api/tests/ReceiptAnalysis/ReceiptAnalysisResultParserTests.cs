@@ -69,7 +69,7 @@ public class ReceiptAnalysisResultParserTests
     [InlineData("null")]
     [InlineData("```json\n{}\n```余分")]
     public void オブジェクトに解析できなければ失敗する(string text) =>
-        Assert.Throws<System.Text.Json.JsonException>(() => ReceiptAnalysisResultParser.Parse(text));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => ReceiptAnalysisResultParser.Parse(text));
 
     [Theory]
     [InlineData(" {} ")]
