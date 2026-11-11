@@ -16,7 +16,9 @@ public sealed class S3ReceiptImageReader(IAmazonS3 s3) : IReceiptImageReader
     {
         var format = Path.GetExtension(key) switch
         {
-            ".jpg" => "jpeg", ".png" => "png", ".webp" => "webp",
+            ".jpg" => "jpeg",
+            ".png" => "png",
+            ".webp" => "webp",
             _ => throw new InvalidOperationException("対応していない画像形式です。"),
         };
         using var response = await s3.GetObjectAsync(new GetObjectRequest { BucketName = bucket, Key = key }, cancellationToken);

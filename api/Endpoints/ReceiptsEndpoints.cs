@@ -36,8 +36,10 @@ public static class ReceiptsEndpoints
             var now = clock.GetUtcNow();
             var job = new ReceiptAnalysisJob
             {
-                Id = Guid.NewGuid(), ObjectKey = target.Key,
-                CreatedAt = now, UpdatedAt = now,
+                Id = Guid.NewGuid(),
+                ObjectKey = target.Key,
+                CreatedAt = now,
+                UpdatedAt = now,
             };
             db.ReceiptAnalysisJobs.Add(job);
             await db.SaveChangesAsync(ct);

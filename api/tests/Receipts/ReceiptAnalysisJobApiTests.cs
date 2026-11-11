@@ -24,11 +24,15 @@ public class ReceiptAnalysisJobApiTests(KakeiboApiTestFactory factory) : IClassF
         var now = new DateTimeOffset(2026, 11, 11, 12, 0, 0, TimeSpan.Zero);
         var job = new ReceiptAnalysisJob
         {
-            Id = Guid.NewGuid(), ObjectKey = $"receipts/{Guid.NewGuid():N}.jpg", Status = status,
-            CreatedAt = now, UpdatedAt = now,
+            Id = Guid.NewGuid(),
+            ObjectKey = $"receipts/{Guid.NewGuid():N}.jpg",
+            Status = status,
+            CreatedAt = now,
+            UpdatedAt = now,
             ReceiptDate = status == "完了" ? new DateOnly(2026, 11, 11) : null,
             TotalAmount = status == "完了" ? 1200 : null,
-            StoreName = status == "完了" ? "店舗" : null, Category = status == "完了" ? "食費" : null,
+            StoreName = status == "完了" ? "店舗" : null,
+            Category = status == "完了" ? "食費" : null,
         };
         db.ReceiptAnalysisJobs.Add(job);
         await db.SaveChangesAsync();

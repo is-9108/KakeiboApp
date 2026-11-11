@@ -22,8 +22,11 @@ public class ReceiptAnalysisHandlerTests(KakeiboApiTestFactory factory) : IClass
         await using var db = CreateDb();
         var job = new ReceiptAnalysisJob
         {
-            Id = Guid.NewGuid(), ObjectKey = $"receipts/{Guid.NewGuid():N}.jpg", Status = status,
-            CreatedAt = Now.AddMinutes(-1), UpdatedAt = Now.AddMinutes(-1),
+            Id = Guid.NewGuid(),
+            ObjectKey = $"receipts/{Guid.NewGuid():N}.jpg",
+            Status = status,
+            CreatedAt = Now.AddMinutes(-1),
+            UpdatedAt = Now.AddMinutes(-1),
         };
         db.ReceiptAnalysisJobs.Add(job);
         await db.SaveChangesAsync();
