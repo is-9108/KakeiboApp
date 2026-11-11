@@ -13,6 +13,18 @@ namespace Kakeibo.MonthlyBatch;
 
 public static class BatchProgram
 {
+    public static AmazonS3Config CreateReceiptS3Config() => new()
+    {
+        MaxErrorRetry = 0,
+        Timeout = TimeSpan.FromSeconds(10),
+    };
+
+    public static AmazonBedrockRuntimeConfig CreateReceiptBedrockConfig() => new()
+    {
+        MaxErrorRetry = 0,
+        Timeout = TimeSpan.FromSeconds(30),
+    };
+
     public static async Task Main()
     {
         using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
@@ -24,8 +36,8 @@ public static class BatchProgram
             {
                 try
                 {
-                    using var s3 = new AmazonS3Client(new AmazonS3Config { MaxErrorRetry = 0 });
-                    using var bedrock = new AmazonBedrockRuntimeClient(new AmazonBedrockRuntimeConfig { MaxErrorRetry = 0 });
+                    using var s3 = new AmazonS3Client(CreateReceiptS3Config());
+                    using var bedrock = new AmazonBedrockRuntimeClient(CreateReceiptBedrockConfig());
                     Task<KakeiboDbContext> CreateDb(CancellationToken cancellationToken)
                     {
                         var options = new DbContextOptionsBuilder<KakeiboDbContext>()
