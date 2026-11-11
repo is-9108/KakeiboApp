@@ -5,6 +5,7 @@ namespace Kakeibo.Api.Tests.MonthlyBatch;
 public class MonthlyBatchJobResolverTests
 {
     [Theory]
+    [InlineData("receipt-analysis", MonthlyBatchJob.ReceiptAnalysis)]
     [InlineData("subscription", MonthlyBatchJob.Subscription)]
     [InlineData(null, MonthlyBatchJob.Notification)]
     [InlineData("notification", MonthlyBatchJob.Notification)]
@@ -14,6 +15,9 @@ public class MonthlyBatchJobResolverTests
     }
 
     [Theory]
+    [InlineData("Receipt-Analysis")]
+    [InlineData(" receipt-analysis")]
+    [InlineData("receipt-analysis ")]
     [InlineData("subscriptions")]
     [InlineData("Subscription")]
     [InlineData("")]

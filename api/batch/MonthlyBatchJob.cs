@@ -3,7 +3,8 @@ namespace Kakeibo.MonthlyBatch;
 public enum MonthlyBatchJob
 {
     Notification,
-    Subscription
+    Subscription,
+    ReceiptAnalysis
 }
 
 public static class MonthlyBatchJobResolver
@@ -13,6 +14,7 @@ public static class MonthlyBatchJobResolver
         return jobName switch
         {
             null or "notification" => MonthlyBatchJob.Notification,
+            "receipt-analysis" => MonthlyBatchJob.ReceiptAnalysis,
             "subscription" => MonthlyBatchJob.Subscription,
             _ => throw new InvalidOperationException($"月次バッチのジョブ名が不正です: 「{jobName}」。")
         };

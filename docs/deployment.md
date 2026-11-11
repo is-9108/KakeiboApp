@@ -50,6 +50,7 @@ Terraform は CloudFormation スタックを使いません。初回の実 AWS �
 - S3（フロント成果物・Lambda ZIP・**Terraform state** の保存量とリクエスト数。無料枠あり）
 - API Gateway HTTP API（リクエスト数。無料枠あり）
 - Lambda（リクエスト数・実行時間。無料枠あり）
+- Bedrock（レシート解析の画像・指示文の入力トークンと出力トークン。19章参照）
 - **Secrets Manager（シークレット 1 件あたりの固定費）**
 - Neon（無料枠の範囲内なら無料。プラン・使用量による）
 - Cognito（無料枠の範囲内なら無料。MAU 課金）
@@ -1426,7 +1427,7 @@ ZIPは通知と共用なので成果物S3の追加バケット・プレフィッ
 
 ## 18. レシート画像の一時保存
 
-`receipts_bucket_name` output が示す非公開バケットに、SPA が署名付き URL で直接 PUT します。API は認証済みの `POST /api/receipts/upload-url` で署名だけを発行し、画像本体を受け取りません。Lambda の `Receipts__BucketName` は Terraform が設定します。未設定でも API は起動し、この操作だけが 500 になります。
+`receipts_bucket_name` output が示す非公開バケットに、SPA が署名付き URL で直接 PUT します。API は認証済みの `POST /api/receipts/upload-url` で署名と解析ジョブIDを発行し、画像本体を受け取りません。Lambda の `Receipts__BucketName` は Terraform が設定します。未設定でも API は起動し、この操作だけが 500 になります。
 
 JPEG・PNG・WebP の 1 バイト〜10 MiB を画面と API で検証します。API のサイズは自己申告で、S3 側ではサイズ上限を強制しません。キーは `receipts/<GUID>.<拡張子>`、署名は Content-Type を含む PUT 専用・5 分です。URL は有効期限内の認証情報として扱い、ログや外部へ共有しないでください。
 
@@ -1443,4 +1444,86 @@ apply 後はユーザーが以下を確認してください。
 - 5 分後の URL および Content-Type を変更した PUT が 403 になること
 - ライフサイクルでの削除とスマホのカメラ起動
 
-画像解析や収支フォームへの反映は後続 Issue の対象です。
+画像解析の設定と運用は19章を参照してください。解析結果の収支フォームへの反映は後続 Issue の対象です。
+
+## 19. レシート解析（Bedrock）
+
+### 構成とモデル
+
+S3の `receipts/` へのObjectCreated → 専用解析Lambda → Bedrock → DBの順に処理します。URL発行時に作ったジョブをS3キーで取得し、候補を保存します。通知・月初登録と `monthly-batch.zip` を共用し、`MonthlyBatch__Job=receipt-analysis` で切り替えます。関数名は `receipt_analysis_function_name` output、ログは `/aws/lambda/<name_prefix>-receipt-analysis`、保持30日です。
+
+既定は `jp.anthropic.claude-haiku-4-5-20251001-v1:0`。2026-11-11に[AWSモデルカード](https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-4-5.html)と[日本国内クロスリージョン推論の公式説明](https://aws.amazon.com/jp/blogs/news/amazon-bedrock-now-supports-japan-cross-region-inference/)でIDを確認しました。東京から利用し、推論先は東京（ap-northeast-1）または大阪（ap-northeast-3）になる可能性があります。変更時はtfvarsに `receipt_analysis_model_id` を設定します（jpまたはapacのClaude推論プロファイルのみ）。モデル環境変数・推論プロファイルARN・条件付き基盤モデルARNが一緒に変わります。apacを選ぶと国内限定ではなくなるため、配置前に提供リージョン・画像対応を確認します。
+
+### モデルアクセスの有効化と初回配置
+
+初回は **マイグレーション → デプロイ権限の追加 → モデルの有効化 → apply** の順です。6章に従って `AddReceiptAnalysisJobs` の冪等SQLを生成・適用し、APIのDBロールが `receipt_analysis_jobs` の参照・追加・更新をできることを確認します。本番の起動時マイグレーションは無効です。
+
+モデル有効化は、人間が管理者権限でBedrockコンソールの **Model catalog** からClaude Haiku 4.5を選び、Anthropicモデルの初回利用時に求められるユースケース申請を送信します。Playgroundで画像を含めて1回呼び出せることを確認してからapplyします。解析LambdaにMarketplace権限は付けないため、初回有効化をLambdaに任せません。既存手順でAPI・バッチの両ZIPを生成し、planでS3通知と解析Lambdaの追加を確認します。
+
+### 費用の目安
+
+入力トークンは、縮小後の画像の幅×高さ÷750（長辺縮小後で最大約1,600トークンが目安）＋指示文、出力は150トークン程度を仮定します。費用は `入力トークン×入力単価/1,000,000 + 出力トークン×出力単価/1,000,000` です。画像・指示文が合計2,000トークンなら、約0.003 USD（1 USD=150円と仮定して約0.5円）/回が目安で、実際の画像や応答で増減します。Lambda・S3・DB・ログ等は別料金です。
+
+2026-11-11に[AWS料金ページ](https://aws.amazon.com/bedrock/pricing/)を確認しましたが、単価表は動的読み込みのため数値を直接取得できませんでした。[Anthropic公式料金表（2026-10-22、8ページ）](https://assets.claude.com/5633dc848caa431115468f31c7085d695bbfb9cc.pdf)のAWS Bedrock Haiku 4.5 Standardを補助資料とし、100万トークンあたり日本を含むGeo Cross Regionは入力1.10 USD／出力5.50 USD、Global Cross Regionは1.00 USD／5.00 USDを計算に用います。jpは国内向けGeoのためGlobalより10%高い区分です。推論プロファイルで無料になるわけではありません。**AWS側の日本向け最新単価は配置前にコンソールまたは料金表で再確認してください。**
+
+### デプロイロールの追加権限
+
+実環境のIAM変更は人間が行います。15章のAPI用管理権限の対象に解析Lambdaを追加し、以下のポリシー例をデプロイロールへ追加します。`<REGION>`・`<ACCOUNT_ID>`・`<NAME_PREFIX>`・`<RECEIPTS_BUCKET>`を実値へ置き換えます。BedrockリソースをTerraformで作らないため、デプロイロールにBedrock呼び出し権限は不要です。
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["lambda:CreateFunction", "lambda:GetFunction", "lambda:GetFunctionConfiguration", "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration", "lambda:DeleteFunction", "lambda:ListTags", "lambda:TagResource", "lambda:UntagResource", "lambda:AddPermission", "lambda:RemovePermission", "lambda:GetPolicy", "lambda:PutFunctionEventInvokeConfig", "lambda:GetFunctionEventInvokeConfig", "lambda:DeleteFunctionEventInvokeConfig"],
+      "Resource": "arn:aws:lambda:<REGION>:<ACCOUNT_ID>:function:<NAME_PREFIX>-receipt-analysis"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateRole", "iam:GetRole", "iam:DeleteRole", "iam:UpdateRole", "iam:UpdateAssumeRolePolicy", "iam:ListRoleTags", "iam:TagRole", "iam:UntagRole", "iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole"],
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-receipt-analysis-lambda"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-receipt-analysis-lambda",
+      "Condition": {"StringEquals": {"iam:PassedToService": "lambda.amazonaws.com"}}
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:PutRetentionPolicy", "logs:DeleteRetentionPolicy", "logs:ListTagsForResource", "logs:TagResource", "logs:UntagResource"],
+      "Resource": "arn:aws:logs:<REGION>:<ACCOUNT_ID>:log-group:/aws/lambda/<NAME_PREFIX>-receipt-analysis:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketNotification", "s3:PutBucketNotification"],
+      "Resource": "arn:aws:s3:::<RECEIPTS_BUCKET>"
+    }
+  ]
+}
+```
+
+一覧取得などリソース制限をサポートしない管理アクションは15章の既存権限を使います。解析実行ロールは専用で、推論プロファイルへのInvokeModel、そのプロファイルを条件にした基盤モデルへのInvokeModel、`receipts/*` のGetObject、専用ログへのCreateLogStream/PutLogEventsの4 Statementだけです。管理ポリシーは付けません。
+
+### 失敗・再試行・更新・削除
+
+アップロード上限は10 MiBですが、[Converseの画像上限](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Message.html)は3.75 MBです。本実装はこれを十進の **3,750,000バイト** として扱い、上限ちょうどは呼び出し、1バイトでも超えたらBedrockを呼ばず「失敗」にします。S3のContentLengthを本文の読み込み前に確認し、上限超過なら本文を読み込みません。読み込み後もサイズを確認します。画像処理による縮小はしません。縦横8,000px等のサービス制約で拒否された場合も「失敗」です。
+
+S3クライアントのタイムアウトは10秒、Bedrockクライアントは30秒に設定し、SDKの自動再試行は無効にしています。両呼び出しの合計40秒に対してLambdaの制限は60秒で、DB更新等の時間を残します。タイムアウト例外も失敗状態への更新対象です（DB遅延や異常終了まで防ぐ保証はありません）。
+
+画像取得・Bedrock・JSON解析の失敗は「失敗」をDBに保存して正常終了するので、その障害でモデルを再呼び出しません。DB障害は例外を返し、Lambda非同期再試行は最大2回です。完了／失敗のジョブは重複イベントで処理せず、待機中の行に限った条件付き更新で結果の上書きを防ぎます。同時に届いたイベントではモデル呼び出し自体が重複する可能性はあります。
+
+ログに出すのは工程・ジョブID・例外種別だけです。応答本文・店名・金額・画像・キー・例外メッセージ・接続情報を記録しません。起動境界も安全な例外へ置き換えます。URL発行後にアップロードしなかった場合やLambdaが異常終了した場合は待機中のまま残り、期限切れや清掃は実装しません。画像は7日で削除されますが、店名等を含むジョブ行は保持されます。
+
+更新・復旧は11章に従い、APIとバッチの両ZIP・対応コード・モデル設定をそろえます。通知と月初登録も共用ZIPの更新対象です。削除・機能ロールバックはS3通知を先に外し、受理済み実行を確認後に解析関数・非同期設定・起動許可・専用ロール/ポリシー・ロググループを削除します。共用ZIPとジョブデータは保持し、DBは巻き戻しません。
+
+### 実環境の確認チェックリスト
+
+- [ ] マイグレーション適用・DB権限確認を先に完了した
+- [ ] デプロイロールに対象リソースだけの管理権限を追加した
+- [ ] モデルIDの実在確認済み（2026-11-11）。本アカウントでのアクセス有効化・画像付きPlayground呼び出しを確認した
+- [ ] AWSの料金表・コンソールで日本向けの最新単価を再確認した（AWSページの数値は実装時に直接取得できず、公式提供元の料金表で補完）
+- [ ] plan/apply後に本番画面から画像をアップロードし、upload-urlレスポンスのjobIdで認証済み `GET /api/receipts/{jobId}` が「完了」になることと候補を確認した（画面の結果表示は後続Issue）
+- [ ] CloudWatch Logsにエラーがなく、Bedrock/S3のAccessDeniedもないことを確認した
+- [ ] 専用検証環境でサイズ超過・モデル失敗時の状態と安全なログを確認した

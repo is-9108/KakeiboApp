@@ -1,6 +1,8 @@
+using Amazon.BedrockRuntime;
 using Amazon.Lambda.Core;
 using Amazon.Lambda.RuntimeSupport;
 using Amazon.Lambda.Serialization.SystemTextJson;
+using Amazon.S3;
 using Amazon.SimpleNotificationService;
 using Kakeibo.Api.Data;
 using Kakeibo.Api.Services;
@@ -11,10 +13,55 @@ namespace Kakeibo.MonthlyBatch;
 
 public static class BatchProgram
 {
+    public static AmazonS3Config CreateReceiptS3Config() => new()
+    {
+        MaxErrorRetry = 0,
+        Timeout = TimeSpan.FromSeconds(10),
+    };
+
+    public static AmazonBedrockRuntimeConfig CreateReceiptBedrockConfig() => new()
+    {
+        MaxErrorRetry = 0,
+        Timeout = TimeSpan.FromSeconds(30),
+    };
+
     public static async Task Main()
     {
         using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        if (MonthlyBatchJobResolver.Resolve(Environment.GetEnvironmentVariable("MonthlyBatch__Job")) == MonthlyBatchJob.Subscription)
+        var job = MonthlyBatchJobResolver.Resolve(Environment.GetEnvironmentVariable("MonthlyBatch__Job"));
+        if (job == MonthlyBatchJob.ReceiptAnalysis)
+        {
+            var analysisLogger = loggerFactory.CreateLogger<ReceiptAnalysisHandler>();
+            async Task InvokeAnalysis(ReceiptAnalysisEvent request, ILambdaContext context)
+            {
+                try
+                {
+                    using var s3 = new AmazonS3Client(CreateReceiptS3Config());
+                    using var bedrock = new AmazonBedrockRuntimeClient(CreateReceiptBedrockConfig());
+                    Task<KakeiboDbContext> CreateDb(CancellationToken cancellationToken)
+                    {
+                        var options = new DbContextOptionsBuilder<KakeiboDbContext>()
+                            .UseNpgsql(Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")).Options;
+                        return Task.FromResult(new KakeiboDbContext(options));
+                    }
+                    var modelId = Environment.GetEnvironmentVariable("ReceiptAnalysis__ModelId")
+                        ?? throw new InvalidOperationException("解析モデルが設定されていません。");
+                    var bucket = Environment.GetEnvironmentVariable("Receipts__BucketName")
+                        ?? throw new InvalidOperationException("レシート保存先が設定されていません。");
+                    await new ReceiptAnalysisHandler(CreateDb, new S3ReceiptImageReader(s3),
+                        new BedrockReceiptModelClient(bedrock, modelId), bucket, TimeProvider.System, analysisLogger).HandleAsync(request);
+                }
+                catch (Exception exception)
+                {
+                    analysisLogger.LogError("解析起動失敗 工程={Stage} ジョブID={JobId} 例外種別={ExceptionType}",
+                        "起動またはDB更新", (Guid?)null, exception.GetType().Name);
+                    throw new InvalidOperationException("レシート解析に失敗しました。工程ログを確認してください。");
+                }
+            }
+            await LambdaBootstrapBuilder.Create<ReceiptAnalysisEvent>(InvokeAnalysis, new DefaultLambdaJsonSerializer()).Build().RunAsync();
+            return;
+        }
+        if (job == MonthlyBatchJob.Subscription)
         {
             var registrationLogger = loggerFactory.CreateLogger<SubscriptionRegistrationHandler>();
             async Task InvokeRegistration(MonthlyNotificationRequest request, ILambdaContext context)
