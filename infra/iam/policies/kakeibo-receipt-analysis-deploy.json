@@ -1,0 +1,91 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:GetFunction",
+        "lambda:GetFunctionConfiguration",
+        "lambda:ListVersionsByFunction",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:GetFunctionUrlConfig",
+        "lambda:GetRuntimeManagementConfig",
+        "lambda:GetFunctionConcurrency",
+        "lambda:GetProvisionedConcurrencyConfig",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:DeleteFunction",
+        "lambda:ListTags",
+        "lambda:TagResource",
+        "lambda:UntagResource",
+        "lambda:AddPermission",
+        "lambda:RemovePermission",
+        "lambda:GetPolicy",
+        "lambda:PutFunctionEventInvokeConfig",
+        "lambda:GetFunctionEventInvokeConfig",
+        "lambda:DeleteFunctionEventInvokeConfig"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:lambda:ap-northeast-1:255737342820:function:kakeibo-receipt-analysis",
+      "Sid": "ReceiptAnalysisLambdaManagement"
+    },
+    {
+      "Action": [
+        "iam:CreateRole",
+        "iam:GetRole",
+        "iam:DeleteRole",
+        "iam:UpdateRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:ListRoleTags",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:PutRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::255737342820:role/kakeibo-receipt-analysis-lambda",
+      "Sid": "ReceiptAnalysisRoleManagement"
+    },
+    {
+      "Action": "iam:PassRole",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::255737342820:role/kakeibo-receipt-analysis-lambda",
+      "Sid": "ReceiptAnalysisPassRole"
+    },
+    {
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:ListTagsForResource",
+        "logs:TagResource",
+        "logs:UntagResource"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:logs:ap-northeast-1:255737342820:log-group:/aws/lambda/kakeibo-receipt-analysis",
+        "arn:aws:logs:ap-northeast-1:255737342820:log-group:/aws/lambda/kakeibo-receipt-analysis:*"
+      ],
+      "Sid": "ReceiptAnalysisLogGroupManagement"
+    },
+    {
+      "Action": [
+        "s3:GetBucketNotification",
+        "s3:PutBucketNotification"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::kakeibo-receipts-255737342820-ap-northeast-1",
+      "Sid": "ReceiptsBucketNotification"
+    }
+  ],
+  "Version": "2012-10-17"
+}
