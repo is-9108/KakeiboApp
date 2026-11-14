@@ -17,6 +17,9 @@
 
 ## 運用ルール
 
+- `NAME_PREFIX` を変える場合は、policies のリソース接頭辞も合わせて変更します。
+- `lambda:Get*` は環境変数（DB 接続文字列を含む）を読み取れ、ログ本文の読み取りは全 kakeibo 関数に広がります。OIDC の引受先を production の immutable subject に固定し、利用者は本人だけという前提です。引受先・利用者の前提が変わったら権限を見直します。
+
 - 読み取りは Get / List / Describe のワイルドカード、書き込み・削除は個別列挙とし、作成・読み取り・更新・削除・タグのライフサイクルをそろえます。
 - S3 バケット読み取りは例外です。`GetBucket*`・`ListBucket*` と既存のバケット単位の個別アクションだけを使います。`Get*` / `List*` は Resource の `*` が `/` をまたぎ、receipts 画像や state の対象外キーまで読めてしまうため使いません。追加時も個別に列挙します。
 - S3 書き込みは site / artifacts と receipts を分けます。receipts にバケットポリシーの変更権限を与えません。state は対象キーとロックに限定します。

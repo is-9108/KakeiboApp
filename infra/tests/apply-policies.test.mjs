@@ -16,7 +16,7 @@ const policy = (document = doc, count = 2) => ({
   })),
 })
 const writes = new Set(['create-policy', 'create-policy-version', 'delete-policy-version', 'attach-role-policy', 'put-role-policy', 'detach-role-policy', 'delete-role-policy'])
-function run(t, { files = { 'sample.json': doc }, state = {}, args = [], region = 'ap-northeast-1', allowDirty = true, gitMode, missingTool } = {}) {
+function run(t, { files = { 'sample.json': doc }, state = {}, args = [], region = 'ap-northeast-1', allowDirty = true, gitMode, missingTool, outside = false } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'iam-test-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   mkdirSync(path.join(dir, 'policies')); mkdirSync(path.join(dir, 'bin'))
@@ -41,7 +41,7 @@ function run(t, { files = { 'sample.json': doc }, state = {}, args = [], region 
   if (missingTool) {
     // 必要なツールだけを置く隔離 PATH。省いたツールがホストから見つからないようにする。
     rmSync(path.join(dir, 'bin/aws'))
-    for (const name of ['bash', 'dirname', 'aws', 'jq', 'diff']) {
+    for (const name of ['bash', 'dirname', 'node', 'aws', 'jq', 'diff']) {
       if (name === missingTool) continue
       if (name === 'aws') { writeFileSync(stub, readFileSync(path.join(here, 'fake-aws.mjs'))); chmodSync(stub, 0o755) }
       else symlinkSync(spawnSync('which', [name], { encoding: 'utf8' }).stdout.trim(), path.join(dir, 'bin', name))
@@ -49,7 +49,7 @@ function run(t, { files = { 'sample.json': doc }, state = {}, args = [], region 
     testPath = path.join(dir, 'bin')
   }
   const result = spawnSync(target, cli, {
-    cwd: dir,
+    cwd: outside ? tmpdir() : dir,
     env: { ...process.env, AWS_REGION: region, PATH: testPath, FAKE_AWS_STATE: stateFile, FAKE_AWS_LOG: log },
     encoding: 'utf8', timeout: 20000,
   })
@@ -77,9 +77,12 @@ test('T4: 相違する管理ポリシーは既定版を追加する', t => {
   assert.equal(r.status, 0); assert.deepEqual(r.writes.map(c => c.operation), ['create-policy-version']); assert.ok(r.writes[0].args.includes('--set-as-default'))
 })
 test('T5: 5版なら既定版以外の最古版を先に削除する', t => {
-  const r = run(t, { state: { managed: { sample: policy(old, 5) } } })
+  const versions = policy(old, 5)
+  // 既定版 v1 が全体の最古、非既定版の最古は ID 順と異なる v3。
+  versions.versions[2].CreateDate = '2026-01-01T01:00:00Z'
+  const r = run(t, { state: { managed: { sample: versions } } })
   assert.equal(r.status, 0); assert.deepEqual(r.writes.map(c => c.operation), ['delete-policy-version', 'create-policy-version'])
-  const a = r.writes[0].args; assert.equal(a[a.indexOf('--version-id') + 1], 'v2')
+  const a = r.writes[0].args; assert.equal(a[a.indexOf('--version-id') + 1], 'v3')
 })
 test('T6: キー順と空白の違いは無視し冪等に処理する', t => {
   const r = run(t, { files: { 'sample.json': { Statement: doc.Statement, Version: doc.Version } } })
@@ -99,8 +102,13 @@ test('T9: 反映が見えなければ5回比較して差分を表示する', t =
   assert.equal(r.calls.filter(c => c.operation === 'list-role-policies').length, 5)
 })
 test('T10: 余分なポリシーは報告し外さない', t => {
-  const r = run(t, { args: ['--check'], state: { attached: ['sample', 'kakeibo-receipts-deploy'] } })
-  assert.equal(r.status, 5); assert.match(r.output, /余分.*kakeibo-receipts-deploy/); assert.equal(r.writes.length, 0)
+  for (const args of [['--check'], []]) {
+    const r = run(t, { args, state: { attached: ['sample', 'kakeibo-receipts-deploy'], inline: { 'kakeibo-deploy': old } } })
+    assert.equal(r.status, 5)
+    assert.match(r.output, /余分.*kakeibo-receipts-deploy/); assert.match(r.output, /余分.*kakeibo-deploy/)
+    assert.equal(r.calls.filter(c => ['detach-role-policy', 'delete-role-policy'].includes(c.operation)).length, 0)
+    assert.equal(r.writes.length, 0)
+  }
 })
 test('T11: check は一致・差分・不足とも書き込まない', t => {
   for (const [state, status] of [[{}, 0], [{ managed: { sample: policy(old) } }, 5], [{ attached: [] }, 5]]) {
@@ -187,4 +195,11 @@ test('T25: 一時 Git リポジトリで既定ディレクトリの変更を検�
   for (const options of [{ gitMode: 'clean', allowDirty: false }, { gitMode: 'dirty', allowDirty: true }]) assert.equal(run(t, options).status, 0)
   const denied = run(t, { allowDirty: false }); assert.equal(denied.status, 1); assert.equal(denied.calls.length, 0)
   for (const flag of ['--check', '--validate-only']) assert.equal(run(t, { allowDirty: false, args: [flag] }).status, 0)
+})
+
+test('C1: リポジトリ外から起動しても正本の Git 状態を検査する', t => {
+  const clean = run(t, { gitMode: 'clean', allowDirty: false, outside: true })
+  assert.equal(clean.status, 0, clean.output)
+  const dirty = run(t, { gitMode: 'dirty', allowDirty: false, outside: true })
+  assert.equal(dirty.status, 1); assert.match(dirty.output, /未コミット.*sample.json/); assert.equal(dirty.calls.length, 0)
 })

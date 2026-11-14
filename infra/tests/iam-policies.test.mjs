@@ -14,12 +14,13 @@ const allows = (s, action, resource) => s.Effect === 'Allow' && array(s.Action).
 const fixture = (Action, Resource, Condition) => ({ Effect: 'Allow', Action, Resource, ...(Condition ? { Condition } : {}) });
 function safeIam(s) {
   const write = array(s.Action).some(a => matches(a.split(':')[0], 'iam') && !/^iam:(Get|List)[A-Za-z*?]*$/i.test(a));
-  return s.Effect !== 'Allow' || !write || array(s.Resource).every(r => !matches(r, role) && !['core', 's3', 'lambda', 'iam', 'edge', 'events'].some(n => matches(r, policyArn.replace(/core$/, n))));
+  return s.Effect !== 'Allow' || !write || array(s.Resource).every(r => !matches(r, role) && ![...files.map(n => n.replace(/\.json$/, '')), 'kakeibo-github-deploy-zzz'].some(n => matches(r, policyArn.replace(/kakeibo-github-deploy-core$/, n))));
 }
 const state = 'arn:aws:s3:::kakeibo-terraform-state-255737342820/kakeibo/terraform.tfstate';
 const protectedObjects = ['arn:aws:s3:::kakeibo-receipts-255737342820-ap-northeast-1/receipts/x.jpg', 'arn:aws:s3:::kakeibo-terraform-state-255737342820/other'];
 const forbidden = protectedObjects.flatMap(r => ['GetObject', 'GetObjectVersion', 'PutObject', 'DeleteObject'].map(a => ['s3:' + a, r]));
 forbidden.push(...['s3:PutBucketPolicy', 's3:DeleteBucket'].map(a => [a, state.split('/kakeibo/')[0]]), ['s3:DeleteObject', state]);
+forbidden.push(...['s3:PutBucketPolicy', 's3:DeleteBucketPolicy'].map(a => [a, protectedObjects[0].split('/receipts/')[0]]), ['secretsmanager:GetSecretValue', 'arn:aws:secretsmanager:ap-northeast-1:255737342820:secret:kakeibo/other-xxxxxx']);
 const safeS3 = s => forbidden.every(([a, r]) => !allows(s, a, r));
 const lambdaRoles = ['api', 'monthly', 'monthly-subscriptions', 'receipt-analysis'].map(n => `arn:aws:iam::255737342820:role/kakeibo-${n}-lambda`);
 const schedulerRoles = ['monthly', 'monthly-subscriptions'].map(n => `arn:aws:iam::255737342820:role/kakeibo-${n}-scheduler`);
@@ -51,11 +52,16 @@ test('P4: 自身のロールと管理ポリシーの書き込みを許可せず2
   for (const r of ['*', role, role.replace('deploy', 'deplo?'), 'arn:aws:iam::255737342820:role/kakeibo-*'])
     for (const a of ['iam:PutRolePolicy', 'iam:*', 'iam:Put*', '*']) assert.equal(safeIam(fixture(a, r)), false);
   assert.equal(safeIam(fixture('iam:CreatePolicyVersion', 'arn:aws:iam::255737342820:policy/kakeibo-*')), false);
+  for (const name of [...files.map(n => n.replace(/\.json$/, '')), 'kakeibo-github-deploy-zzz'])
+    assert.equal(safeIam(fixture('iam:CreatePolicyVersion', policyArn.replace(/kakeibo-github-deploy-core$/, name))), false);
   assert.ok(safeIam(fixture('iam:Get*', role)));
   const denies = statements.filter(s => s.Effect === 'Deny');
+  const covers = (s, r, actions) => !('Condition' in s) && array(s.Resource).some(p => matches(p, r)) && actions.every(a => array(s.Action).some(p => matches(p, 'iam:' + a)));
   const roleWrites = ['CreateRole', 'DeleteRole', 'UpdateRole', 'UpdateAssumeRolePolicy', 'PutRolePolicy', 'DeleteRolePolicy', 'AttachRolePolicy', 'DetachRolePolicy', 'PassRole', 'TagRole', 'UntagRole', 'PutRolePermissionsBoundary', 'DeleteRolePermissionsBoundary'];
   for (const [r, actions] of [[role, roleWrites], [policyArn, ['CreatePolicyVersion', 'SetDefaultPolicyVersion', 'DeletePolicyVersion', 'DeletePolicy', 'CreatePolicy']]]) {
-    assert.ok(denies.some(s => array(s.Resource).some(p => matches(p, r)) && actions.every(a => array(s.Action).some(p => matches(p, 'iam:' + a)))));
+    assert.ok(denies.some(s => covers(s, r, actions)));
+    const guard = denies.find(s => covers(s, r, actions));
+    assert.equal(covers({ ...guard, Condition: { StringEquals: { 'aws:PrincipalArn': 'arn:aws:iam::255737342820:user/other' } } }, r, actions), false);
   }
   assert.ok(denies.filter(s => array(s.Resource).some(p => matches(p, role))).every(s => !array(s.Resource).some(p => matches(p, policyArn))));
 });
@@ -68,6 +74,13 @@ test('P5: 全リソースは個別アクションのみ、書き込みワイル�
 test('P6: 具体的 ARN とアクションの照合で receipts と state を保護する', () => {
   assert.ok(statements.every(safeS3));
   for (const [a, r] of [['s3:Get*', 'arn:aws:s3:::kakeibo-*'], ['s3:GetObject', 'arn:aws:s3:::kakeibo-receipts-*/*'], ['s3:PutObject', 'arn:aws:s3:::kakeibo-receipts-*/*'], ['S3:GetObject', protectedObjects[0]]]) assert.equal(safeS3(fixture(a, r)), false);
+  const receipts = protectedObjects[0].split('/receipts/')[0];
+  const site = statements.find(s => s.Sid === 'ManageSiteArtifactsBuckets');
+  const expanded = { ...site, Resource: [...array(site.Resource), 'arn:aws:s3:::kakeibo-receipts-*'] };
+  assert.equal(safeS3(expanded), false);
+  for (const a of ['s3:PutBucketPolicy', 's3:DeleteBucketPolicy']) assert.equal(safeS3(fixture(a, receipts)), false);
+  const otherSecret = 'arn:aws:secretsmanager:ap-northeast-1:255737342820:secret:kakeibo/other-xxxxxx';
+  assert.equal(safeS3(fixture('secretsmanager:GetSecretValue', otherSecret)), false);
   assert.ok(matches('arn:aws:s3:::kakeibo-*', protectedObjects[0]));
   for (const [r, actions] of [[state, ['GetObject', 'PutObject']], [state + '.tflock', ['GetObject', 'PutObject', 'DeleteObject']]])
     for (const a of actions) assert.ok(statements.some(s => allows(s, 's3:' + a, r)), `${a} ${r}`);

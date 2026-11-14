@@ -36,7 +36,7 @@ if $custom && ! $allow_dirty && [[ "$mode" == apply ]]; then
   error "反映モードの --policies-dir には --allow-dirty が必要です"; exit 1
 fi
 if ! $custom && ! $allow_dirty; then
-  if ! dirty=$(git status --porcelain -- "$DIR"); then error "Git 状態を取得できません"; exit 1; fi
+  if ! dirty=$(git -C "$DIR" status --porcelain -- .); then error "Git 状態を取得できません"; exit 1; fi
   if [[ -n "$dirty" ]]; then error "正本に未コミットの変更があります: $dirty"; exit 1; fi
 fi
 shopt -s nullglob
