@@ -1,0 +1,72 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "apigateway:DELETE",
+        "apigateway:GET",
+        "apigateway:PATCH",
+        "apigateway:POST",
+        "apigateway:PUT"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:apigateway:ap-northeast-1::/apis/wcc5e12yqf",
+        "arn:aws:apigateway:ap-northeast-1::/apis/wcc5e12yqf/*",
+        "arn:aws:apigateway:ap-northeast-1::/tags/*"
+      ],
+      "Sid": "ApiGateway"
+    },
+    {
+      "Action": [
+        "apigateway:POST"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:apigateway:ap-northeast-1::/apis",
+      "Sid": "CreateApi"
+    },
+    {
+      "Action": [
+        "cloudfront:CreateInvalidation",
+        "cloudfront:DeleteDistribution",
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:GetInvalidation",
+        "cloudfront:ListTagsForResource",
+        "cloudfront:TagResource",
+        "cloudfront:UntagResource",
+        "cloudfront:UpdateDistribution"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:cloudfront::255737342820:distribution/E2UWQ35ESSQ4MT",
+      "Sid": "ManageDistribution"
+    },
+    {
+      "Action": [
+        "cloudfront:DeleteFunction",
+        "cloudfront:Describe*",
+        "cloudfront:Get*",
+        "cloudfront:List*",
+        "cloudfront:ListTagsForResource",
+        "cloudfront:PublishFunction",
+        "cloudfront:TagResource",
+        "cloudfront:UntagResource",
+        "cloudfront:UpdateFunction"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:cloudfront::255737342820:function/kakeibo-*",
+      "Sid": "ManageFunction"
+    },
+    {
+      "Action": [
+        "cloudfront:DeleteOriginAccessControl",
+        "cloudfront:GetOriginAccessControl",
+        "cloudfront:GetOriginAccessControlConfig",
+        "cloudfront:UpdateOriginAccessControl"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:cloudfront::255737342820:origin-access-control/EFVP9LDI80ZZE",
+      "Sid": "ManageOriginAccessControl"
+    }
+  ],
+  "Version": "2012-10-17"
+}

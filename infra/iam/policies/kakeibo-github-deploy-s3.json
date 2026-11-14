@@ -1,0 +1,72 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "s3:GetBucket*",
+        "s3:ListBucket*",
+        "s3:GetAccelerateConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetReplicationConfiguration"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::kakeibo-*",
+      "Sid": "ReadBuckets"
+    },
+    {
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:DeleteBucketPolicy",
+        "s3:PutBucketOwnershipControls",
+        "s3:PutBucketPolicy",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketTagging",
+        "s3:PutEncryptionConfiguration"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::kakeibo-site-*",
+        "arn:aws:s3:::kakeibo-artifacts-*"
+      ],
+      "Sid": "ManageSiteArtifactsBuckets"
+    },
+    {
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:PutBucketCORS",
+        "s3:PutBucketNotification",
+        "s3:PutBucketOwnershipControls",
+        "s3:PutBucketPublicAccessBlock",
+        "s3:PutBucketTagging",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutLifecycleConfiguration"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::kakeibo-receipts-*",
+      "Sid": "ManageReceiptsBucket"
+    },
+    {
+      "Action": [
+        "s3:AbortMultipartUpload",
+        "s3:DeleteObject",
+        "s3:DeleteObjectTagging",
+        "s3:GetObject",
+        "s3:GetObjectAttributes",
+        "s3:GetObjectTagging",
+        "s3:GetObjectVersion",
+        "s3:ListMultipartUploadParts",
+        "s3:PutObject",
+        "s3:PutObjectTagging"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:s3:::kakeibo-site-*/*",
+        "arn:aws:s3:::kakeibo-artifacts-*/*"
+      ],
+      "Sid": "AppObjects"
+    }
+  ],
+  "Version": "2012-10-17"
+}
