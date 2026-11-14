@@ -32,6 +32,9 @@ for tool in aws jq diff; do
 done
 if [[ -z "${AWS_REGION:-}" ]]; then error "AWS_REGION が必要です"; exit 1; fi
 export AWS_PAGER=""
+if $custom && ! $allow_dirty && [[ "$mode" == apply ]]; then
+  error "反映モードの --policies-dir には --allow-dirty が必要です"; exit 1
+fi
 if ! $custom && ! $allow_dirty; then
   if ! dirty=$(git status --porcelain -- "$DIR"); then error "Git 状態を取得できません"; exit 1; fi
   if [[ -n "$dirty" ]]; then error "正本に未コミットの変更があります: $dirty"; exit 1; fi
@@ -71,13 +74,15 @@ if [[ "$mode" != validate-only ]]; then
   fi
 fi
 bad=0
+api_failed=0
 for file in "${files[@]}"; do
   if ! findings=$(aws_json accessanalyzer validate-policy --policy-type IDENTITY_POLICY --policy-document "file://$file"); then
-    error "$file: ValidatePolicy に失敗"; bad=1; continue
+    error "$file: ValidatePolicy に失敗"; api_failed=1; continue
   fi
   jq -r --arg file "$file" '.findings[] | "\($file): \(.findingType) \(.issueCode) \(.findingDetails) \(.locations | tojson)"' <<<"$findings" >&2
   if ! jq -e '[.findings[] | select(.findingType == "ERROR" or .findingType == "SECURITY_WARNING")] | length == 0' <<<"$findings" >/dev/null; then bad=1; fi
 done
+if ((api_failed)); then exit 6; fi
 if ((bad)); then exit 3; fi
 if [[ "$mode" == validate-only ]]; then exit 0; fi
 
@@ -96,8 +101,8 @@ get_document() {
     data=$(fetch iam get-policy --policy-arn "$arn") || return 1
     if [[ "$data" != null ]]; then
       version=$(jq -er .Policy.DefaultVersionId <<<"$data") || return 1
-      data=$(aws_json iam get-policy-version --policy-arn "$arn" --version-id "$version") || return 1
-      remote=$(jq -c .PolicyVersion.Document <<<"$data") || return 1
+      data=$(fetch iam get-policy-version --policy-arn "$arn" --version-id "$version") || return 1
+      remote=$(jq -c 'if . == null then null else .PolicyVersion.Document end' <<<"$data") || return 1
     fi
   else
     data=$(fetch iam get-role-policy --role-name "$ROLE" --policy-name "$name") || return 1
@@ -160,8 +165,8 @@ compare_sets() {
 check_all() {
   local attached listed expected i limit result
   mismatch=0
-  attached=$(aws_json iam list-attached-role-policies --role-name "$ROLE") || return 1
-  listed=$(aws_json iam list-role-policies --role-name "$ROLE") || return 1
+  attached=$(aws_json iam list-attached-role-policies --role-name "$ROLE") || return 6
+  listed=$(aws_json iam list-role-policies --role-name "$ROLE") || return 6
   expected=$(printf '%s\n' "${managed[@]}" | jq -R -s 'split("\n") | map(select(length > 0))')
   compare_sets 管理 "$expected" "$(jq '[.AttachedPolicies[].PolicyName]' <<<"$attached")"
   expected=$(printf '%s\n' "${inline[@]}" | jq -R -s 'split("\n") | map(select(length > 0))')
@@ -169,7 +174,7 @@ check_all() {
   echo "ポリシー名 / 種別 / 既定版 ID / 文字数 / 上限比 / 結果"
   for i in "${!files[@]}"; do
     select_policy "$i"
-    get_document || return 1
+    get_document || return 6
     result=一致
     if ! same; then
       mismatch=1; result=不一致
@@ -186,8 +191,9 @@ check_all() {
 attempts=5
 if [[ "$mode" == check ]]; then attempts=1; fi
 for ((attempt=1; attempt<=attempts; attempt++)); do
-  if check_all; then echo "差分なし"; exit 0; fi
+  if check_all; then echo "差分なし"; exit 0; else result_code=$?; fi
   if ((attempt < attempts)); then sleep 3; fi
 done
+if ((result_code == 6)); then error "比較 API の取得に失敗しました"; exit 6; fi
 error "取得・比較が一致しません"
 exit 5

@@ -11,7 +11,8 @@ const document = () => JSON.parse(readFileSync(option('--policy-document').repla
 const name = args.includes('--policy-arn') ? option('--policy-arn').split('/').at(-1) : option('--policy-name')
 const missing = () => { console.error('NoSuchEntity'); process.exit(254) }
 let result = {}
-if (state.fail === operation) { console.error('模擬 API エラー'); process.exit(254) }
+const operationCalls = readFileSync(process.env.FAKE_AWS_LOG, 'utf8').trim().split('\n').map(JSON.parse).filter(c => c.operation === operation).length
+if (state.fail === operation && operationCalls > (state.failAfter ?? 0)) { console.error('模擬 API エラー'); process.exit(254) }
 if (service === 'sts') result = state.identity ?? { Account: '255737342820', Arn: 'arn:aws:iam::255737342820:user/admin' }
 else if (service === 'accessanalyzer') result = { findings: state.findings?.[option('--policy-document').split('/').at(-1)] ?? [] }
 else if (service === 'iam') {
