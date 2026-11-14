@@ -52,6 +52,7 @@ export function deriveRequests(plan, manifest, account, region) {
   for (const resource of plan.resource_changes ?? []) {
     const entry = manifest.resourceTypes[typeKey(resource)]
     const { change } = resource
+    if (change.actions.join(',') === 'no-op' && !change.importing) continue
     if (!entry) { warnings.push(`マニフェスト未登録のリソースタイプ ${typeKey(resource)}（${resource.address}、${change.actions.join(',')}）。権限は検証していません。infra/iam/action-manifest.json に追加してください`); continue }
     const combos = []
     const afterOps = ops => ops.forEach(op => combos.push([op, 'after']))
@@ -72,7 +73,7 @@ export function deriveRequests(plan, manifest, account, region) {
         const found = get(change[side], key)
         if (!(side === 'after' && unknown(change.after_unknown, key)) && found !== null && found !== undefined && found !== '') return found
         if (side === 'after' && !resource.address.startsWith('module.')) {
-          const refs = config.get(plainAddress(resource.address))?.expressions?.[key]?.references ?? []
+          const refs = get(config.get(plainAddress(resource.address))?.expressions, key)?.references ?? []
           for (const ref of refs) {
             const match = /^((?:data\.)?\w+\.\w+(?:\[(?:"[^"\n]*"|\d+)\])?)\.(.+)$/.exec(ref)
             if (!match) continue
@@ -81,6 +82,12 @@ export function deriveRequests(plan, manifest, account, region) {
             const direct = get(target.change.after, attr)
             if (!unknown(target.change.after_unknown, attr) && direct !== null && direct !== undefined && direct !== '') return direct
             const targetEntry = manifest.resourceTypes[typeKey(target)]
+            // 非 ARN 参照は、利用側の ARN テンプレートに渡す確定名を復元する。
+            if (attr !== 'arn' && targetEntry) {
+              const nameKey = target.type === 'aws_iam_role' ? 'name' : target.type === 'aws_s3_bucket' ? 'bucket' : undefined
+              const name = nameKey && get(target.change.after, nameKey)
+              if (nameKey && !unknown(target.change.after_unknown, nameKey) && name !== null && name !== undefined && name !== '') return name
+            }
             if (attr === 'arn' && targetEntry) return targetEntry.arn.replace(/\{([^{}]+)\}/g, (_, k) => {
               if (k === 'account') return account
               if (k === 'region') return region
