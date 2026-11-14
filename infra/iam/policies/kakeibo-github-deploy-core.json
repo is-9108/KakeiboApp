@@ -1,0 +1,60 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::kakeibo-terraform-state-255737342820/kakeibo/terraform.tfstate",
+      "Sid": "StateObject"
+    },
+    {
+      "Action": [
+        "s3:DeleteObject",
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:s3:::kakeibo-terraform-state-255737342820/kakeibo/terraform.tfstate.tflock",
+      "Sid": "StateLock"
+    },
+    {
+      "Action": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:secretsmanager:ap-northeast-1:255737342820:secret:kakeibo/database-mjboif",
+      "Sid": "DatabaseSecret"
+    },
+    {
+      "Action": [
+        "logs:DescribeLogStreams",
+        "logs:FilterLogEvents",
+        "logs:Get*"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:logs:ap-northeast-1:255737342820:log-group:/aws/lambda/kakeibo-*",
+        "arn:aws:logs:ap-northeast-1:255737342820:log-group:/aws/lambda/kakeibo-*:*"
+      ],
+      "Sid": "ReadLogs"
+    },
+    {
+      "Action": [
+        "cloudfront:CreateDistribution",
+        "cloudfront:CreateFunction",
+        "cloudfront:CreateOriginAccessControl",
+        "cloudfront:ListDistributions",
+        "cloudfront:ListFunctions",
+        "cloudfront:ListOriginAccessControls",
+        "logs:DescribeLogGroups",
+        "sts:GetCallerIdentity"
+      ],
+      "Effect": "Allow",
+      "Resource": "*",
+      "Sid": "NoResourceLevelSupport"
+    }
+  ],
+  "Version": "2012-10-17"
+}

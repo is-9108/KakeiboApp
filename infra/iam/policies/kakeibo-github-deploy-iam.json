@@ -1,0 +1,112 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "iam:Get*",
+        "iam:List*"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::255737342820:role/kakeibo-*",
+      "Sid": "ReadRoles"
+    },
+    {
+      "Action": [
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:DeleteRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:UpdateRole"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:iam::255737342820:role/kakeibo-*-lambda",
+        "arn:aws:iam::255737342820:role/kakeibo-*-scheduler"
+      ],
+      "Sid": "ManageExecutionRoles"
+    },
+    {
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy"
+      ],
+      "Condition": {
+        "ArnEquals": {
+          "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::255737342820:role/kakeibo-*-lambda",
+      "Sid": "LambdaLoggingPolicy"
+    },
+    {
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "lambda.amazonaws.com"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:iam::255737342820:role/kakeibo-api-lambda",
+        "arn:aws:iam::255737342820:role/kakeibo-monthly-lambda",
+        "arn:aws:iam::255737342820:role/kakeibo-monthly-subscriptions-lambda",
+        "arn:aws:iam::255737342820:role/kakeibo-receipt-analysis-lambda"
+      ],
+      "Sid": "PassLambdaRoles"
+    },
+    {
+      "Action": [
+        "iam:PassRole"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": "scheduler.amazonaws.com"
+        }
+      },
+      "Effect": "Allow",
+      "Resource": [
+        "arn:aws:iam::255737342820:role/kakeibo-monthly-scheduler",
+        "arn:aws:iam::255737342820:role/kakeibo-monthly-subscriptions-scheduler"
+      ],
+      "Sid": "PassSchedulerRoles"
+    },
+    {
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:DeleteRolePermissionsBoundary",
+        "iam:DeleteRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:PassRole",
+        "iam:PutRolePermissionsBoundary",
+        "iam:PutRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:UpdateRole"
+      ],
+      "Effect": "Deny",
+      "Resource": "arn:aws:iam::255737342820:role/kakeibo-github-deploy",
+      "Sid": "DenyDeployRoleChanges"
+    },
+    {
+      "Action": [
+        "iam:CreatePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:DeletePolicy",
+        "iam:CreatePolicy"
+      ],
+      "Effect": "Deny",
+      "Resource": "arn:aws:iam::255737342820:policy/kakeibo-github-deploy-*",
+      "Sid": "DenyDeployPolicyChanges"
+    }
+  ],
+  "Version": "2012-10-17"
+}

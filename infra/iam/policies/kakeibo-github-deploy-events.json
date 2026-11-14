@@ -1,0 +1,47 @@
+{
+  "Statement": [
+    {
+      "Action": [
+        "sns:CreateTopic",
+        "sns:DeleteTopic",
+        "sns:Get*",
+        "sns:List*",
+        "sns:SetSubscriptionAttributes",
+        "sns:SetTopicAttributes",
+        "sns:Subscribe",
+        "sns:TagResource",
+        "sns:Unsubscribe",
+        "sns:UntagResource"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:sns:ap-northeast-1:255737342820:kakeibo-*",
+      "Sid": "Sns"
+    },
+    {
+      "Action": [
+        "scheduler:CreateScheduleGroup",
+        "scheduler:DeleteScheduleGroup",
+        "scheduler:Get*",
+        "scheduler:List*",
+        "scheduler:TagResource",
+        "scheduler:UntagResource"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:scheduler:ap-northeast-1:255737342820:schedule-group/kakeibo-*",
+      "Sid": "SchedulerGroup"
+    },
+    {
+      "Action": [
+        "scheduler:CreateSchedule",
+        "scheduler:DeleteSchedule",
+        "scheduler:Get*",
+        "scheduler:List*",
+        "scheduler:UpdateSchedule"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:scheduler:ap-northeast-1:255737342820:schedule/kakeibo-*/*",
+      "Sid": "SchedulerSchedule"
+    }
+  ],
+  "Version": "2012-10-17"
+}

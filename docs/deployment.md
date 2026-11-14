@@ -996,250 +996,25 @@ gh api repos/is-9108/KakeiboApp/actions/oidc/customization/sub
 
 値が一致しない場合は、`configure-aws-credentials` のステップが `Not authorized to perform sts:AssumeRoleWithWebIdentity` などのエラーで失敗します。`sub` は完全一致にし、リポジトリ全体のワイルドカードを使いません。通常のブランチ・PR の subject は一致しません。Environment を使うジョブの subject はブランチ名を含まないため、次項の Environment の main 制限と併用します。
 
-次の権限ポリシー例を、ロールのインラインポリシーとして登録します。すべての `<...>` を実環境に置き換えてください。`<STATE_KEY>` は state オブジェクトのキー、`<API_ID>`・`<DISTRIBUTION_ID>`・`<OAC_ID>` は初回構築済みリソースの ID、`<DATABASE_SECRET_ARN>` は Secret の完全な ARN です。state バケットとアプリ用バケットを混同しないでください。
+権限ポリシーの正本は [`infra/iam/policies/`](../infra/iam/policies/) のカスタマー管理ポリシー群です。人間が管理者プロファイルで `infra/iam/apply-policies.sh` を実行して反映します。構成表・前提・終了コード・初回移行・ロールバックは [IAM README](../infra/iam/README.md) を参照してください。
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "StateBucket",
-      "Effect": "Allow",
-      "Action": [
-        "s3:ListBucket",
-        "s3:GetBucketLocation",
-        "s3:GetBucketVersioning"
-      ],
-      "Resource": "arn:aws:s3:::<STATE_BUCKET>"
-    },
-    {
-      "Sid": "StateObject",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject"
-      ],
-      "Resource": "arn:aws:s3:::<STATE_BUCKET>/<STATE_KEY>"
-    },
-    {
-      "Sid": "StateLock",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject"
-      ],
-      "Resource": "arn:aws:s3:::<STATE_BUCKET>/<STATE_KEY>.tflock"
-    },
-    {
-      "Sid": "AppBuckets",
-      "Effect": "Allow",
-      "Action": [
-        "s3:CreateBucket",
-        "s3:DeleteBucket",
-        "s3:ListBucket",
-        "s3:GetBucket*",
-        "s3:GetAccelerateConfiguration",
-        "s3:GetEncryptionConfiguration",
-        "s3:GetLifecycleConfiguration",
-        "s3:GetReplicationConfiguration",
-        "s3:ListBucketMultipartUploads",
-        "s3:PutBucketPolicy",
-        "s3:DeleteBucketPolicy",
-        "s3:PutBucketPublicAccessBlock",
-        "s3:PutEncryptionConfiguration",
-        "s3:PutBucketOwnershipControls",
-        "s3:PutBucketTagging"
-      ],
-      "Resource": [
-        "arn:aws:s3:::<NAME_PREFIX>-site-*",
-        "arn:aws:s3:::<NAME_PREFIX>-artifacts-*"
-      ]
-    },
-    {
-      "Sid": "AppObjects",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:GetObjectVersion",
-        "s3:GetObjectAttributes",
-        "s3:PutObject",
-        "s3:DeleteObject",
-        "s3:GetObjectTagging",
-        "s3:PutObjectTagging",
-        "s3:DeleteObjectTagging",
-        "s3:AbortMultipartUpload",
-        "s3:ListMultipartUploadParts"
-      ],
-      "Resource": [
-        "arn:aws:s3:::<NAME_PREFIX>-site-*/*",
-        "arn:aws:s3:::<NAME_PREFIX>-artifacts-*/*"
-      ]
-    },
-    {
-      "Sid": "ApiLambda",
-      "Effect": "Allow",
-      "Action": [
-        "lambda:CreateFunction",
-        "lambda:GetFunction",
-        "lambda:GetFunctionConfiguration",
-        "lambda:GetPolicy",
-        "lambda:GetFunctionCodeSigningConfig",
-        "lambda:GetFunctionConcurrency",
-        "lambda:GetRuntimeManagementConfig",
-        "lambda:ListVersionsByFunction",
-        "lambda:ListTags",
-        "lambda:UpdateFunctionCode",
-        "lambda:UpdateFunctionConfiguration",
-        "lambda:DeleteFunction",
-        "lambda:AddPermission",
-        "lambda:RemovePermission",
-        "lambda:TagResource",
-        "lambda:UntagResource"
-      ],
-      "Resource": "arn:aws:lambda:<REGION>:<ACCOUNT_ID>:function:<NAME_PREFIX>-api"
-    },
-    {
-      "Sid": "LambdaRole",
-      "Effect": "Allow",
-      "Action": [
-        "iam:CreateRole",
-        "iam:GetRole",
-        "iam:UpdateAssumeRolePolicy",
-        "iam:UpdateRole",
-        "iam:DeleteRole",
-        "iam:ListRolePolicies",
-        "iam:GetRolePolicy",
-        "iam:ListAttachedRolePolicies",
-        "iam:ListInstanceProfilesForRole",
-        "iam:ListRoleTags",
-        "iam:TagRole",
-        "iam:UntagRole"
-      ],
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-api-lambda"
-    },
-    {
-      "Sid": "LambdaLoggingPolicy",
-      "Effect": "Allow",
-      "Action": [
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy"
-      ],
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-api-lambda",
-      "Condition": {
-        "ArnEquals": {
-          "iam:PolicyARN": "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-        }
-      }
-    },
-    {
-      "Sid": "PassLambdaRole",
-      "Effect": "Allow",
-      "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-api-lambda",
-      "Condition": {
-        "StringEquals": {
-          "iam:PassedToService": "lambda.amazonaws.com"
-        }
-      }
-    },
-    {
-      "Sid": "ApiGateway",
-      "Effect": "Allow",
-      "Action": [
-        "apigateway:GET",
-        "apigateway:POST",
-        "apigateway:PUT",
-        "apigateway:PATCH",
-        "apigateway:DELETE"
-      ],
-      "Resource": [
-        "arn:aws:apigateway:<REGION>::/apis/<API_ID>",
-        "arn:aws:apigateway:<REGION>::/apis/<API_ID>/*",
-        "arn:aws:apigateway:<REGION>::/tags/*"
-      ]
-    },
-    {
-      "Sid": "CreateApi",
-      "Effect": "Allow",
-      "Action": "apigateway:POST",
-      "Resource": "arn:aws:apigateway:<REGION>::/apis"
-    },
-    {
-      "Sid": "CloudFrontResources",
-      "Effect": "Allow",
-      "Action": [
-        "cloudfront:GetDistribution",
-        "cloudfront:GetDistributionConfig",
-        "cloudfront:UpdateDistribution",
-        "cloudfront:DeleteDistribution",
-        "cloudfront:CreateInvalidation",
-        "cloudfront:GetInvalidation",
-        "cloudfront:GetFunction",
-        "cloudfront:DescribeFunction",
-        "cloudfront:UpdateFunction",
-        "cloudfront:PublishFunction",
-        "cloudfront:DeleteFunction",
-        "cloudfront:GetOriginAccessControl",
-        "cloudfront:GetOriginAccessControlConfig",
-        "cloudfront:UpdateOriginAccessControl",
-        "cloudfront:DeleteOriginAccessControl",
-        "cloudfront:ListTagsForResource",
-        "cloudfront:TagResource",
-        "cloudfront:UntagResource"
-      ],
-      "Resource": [
-        "arn:aws:cloudfront::<ACCOUNT_ID>:distribution/<DISTRIBUTION_ID>",
-        "arn:aws:cloudfront::<ACCOUNT_ID>:function/<NAME_PREFIX>-spa-rewrite",
-        "arn:aws:cloudfront::<ACCOUNT_ID>:origin-access-control/<OAC_ID>"
-      ]
-    },
-    {
-      "Sid": "CloudFrontCreateAndList",
-      "Effect": "Allow",
-      "Action": [
-        "cloudfront:CreateDistribution",
-        "cloudfront:CreateFunction",
-        "cloudfront:CreateOriginAccessControl",
-        "cloudfront:ListDistributions",
-        "cloudfront:ListFunctions",
-        "cloudfront:ListOriginAccessControls"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "DatabaseSecret",
-      "Effect": "Allow",
-      "Action": [
-        "secretsmanager:GetSecretValue"
-      ],
-      "Resource": "<DATABASE_SECRET_ARN>"
-    },
-    {
-      "Sid": "ReadLogs",
-      "Effect": "Allow",
-      "Action": [
-        "logs:DescribeLogStreams",
-        "logs:GetLogEvents",
-        "logs:FilterLogEvents"
-      ],
-      "Resource": "arn:aws:logs:<REGION>:<ACCOUNT_ID>:log-group:/aws/lambda/<NAME_PREFIX>-api:*"
-    },
-    {
-      "Sid": "CallerIdentity",
-      "Effect": "Allow",
-      "Action": "sts:GetCallerIdentity",
-      "Resource": "*"
-    }
-  ]
-}
-```
+### 管理ポリシーの構成
 
-この例は2章の権限を構成に合わせて限定したものです。CloudFront の作成・一覧はリソースを限定できない操作を含むため `Resource: "*"` にしています。API Gateway のタグ ARN はリソース ARN をエンコードして含むため、リージョン内の `/tags/*` を許可しています。バケットの Get、Lambda・IAM の Get/List は Terraform の refresh にも使います。state を SSE-KMS にしている場合は、対象キーの KMS 権限も別途必要です。
+Terraform 実行基盤、S3、Lambda、IAM、CloudFront / API Gateway、SNS / Scheduler の6本に分割しています。インラインポリシーは合計10,240文字の上限に近づいたため使いません。読み取りは限定 Resource のワイルドカードを基本とし、S3 バケットはオブジェクトへの権限拡大を防ぐため例外とします。書き込みは個別列挙し、S3 はバケット種別で分けます。
 
-`DeleteBucketOwnershipControls` の API は `s3:PutBucketOwnershipControls` で、`CreateDistributionWithTags` の API は `cloudfront:CreateDistribution` と `cloudfront:TagResource` で許可されるため、API と同じ名前のアクションはポリシーに書きません。
+自己昇格防止の Deny はデプロイロール自身と管理ポリシーへの直接変更を防ぎます。実行ロールを経由した間接的な権限昇格は残存リスクです。緩和策と Permissions boundary の今後の扱いは README に記載しています。
 
-このポリシー例は実 AWS では未検証です。初回デプロイで AccessDenied が発生した場合は、対象アクションと ARN を確認し、必要な範囲だけポリシーと本書を更新してください。API・Distribution・OAC を置換すると ID が変わるため、置換の際は対象 ARN の見直しが必要です。Distribution を作り直す場合は、新しい Distribution の ARN に対しても `cloudfront:TagResource` が必要です。Secret の値や Lambda 環境設定を読み取れる権限を含むため、ロールの引受先を広げないでください。
+### AccessDenied 発生時の runbook
+
+1. Actions ログの `is not authorized to perform: <action> on resource: <arn>` からアクション名と ARN を読みます。
+2. 明示的 Deny か許可不足かを区別します。Deny の場合は許可追加だけでは解消しません。
+3. [Service Authorization Reference](https://docs.aws.amazon.com/service-authorization/latest/reference/reference_policies_actions-resources-contextkeys.html) でアクション名とリソースタイプを確認します。
+4. 作成・読み取り・更新・削除・タグのライフサイクルを確認し、README の担当 JSON に必要な範囲で追記して PR を作ります。
+5. 人間が `apply-policies.sh` で反映し、終了0・差分なしを確認して Deploy を Re-run all jobs します。
+6. CloudFront Distribution / OAC / API を置き換えて ID が変わったら、edge JSON の対象 ARN を新 ID に更新して同様に反映します。Distribution の作成時タグ付けで `cloudfront:TagResource` が拒否された場合も新 ARN を確認します。置き換えは変更なし apply では検証できず、事前検出は #53 に引き継ぎます。
+7. 原因がすぐ分からず復旧を急ぐ場合は README の旧ポリシー復元手順を使います。
+
+Secret の値や Lambda 環境設定を読み取れる権限を含むため、ロールの引受先を広げないでください。state を SSE-KMS にする場合は、KMS 権限を正本 JSON に追加して検証・反映します。
 
 ### GitHub Environment `production`
 
@@ -1360,20 +1135,14 @@ SchedulerはLambda受理まで最大2回・最大24時間の配信再試行、�
 
 ### デプロイ権限、更新・復旧・削除
 
-実環境のIAM変更は人間が行います。既存デプロイロールに以下の管理権限を追加し、`<name_prefix>-monthly` 系の対象ARNへ限定してください。Lambda実行ロール自身には追加しません。
-
-- SNS: 対象トピックの `sns:CreateTopic` / `GetTopicAttributes` / `SetTopicAttributes` / `DeleteTopic` / `TagResource` / `UntagResource` / `ListTagsForResource` / `Subscribe` / `ListSubscriptionsByTopic`、対象購読の `GetSubscriptionAttributes` / `SetSubscriptionAttributes` / `Unsubscribe`。購読ARNはトピックARNに購読IDが付く形式です。
-- Scheduler: 対象グループの `scheduler:CreateScheduleGroup` / `GetScheduleGroup` / `DeleteScheduleGroup` / `ListTagsForResource` / `TagResource` / `UntagResource`、そのグループ内の対象スケジュールの `CreateSchedule` / `GetSchedule` / `UpdateSchedule` / `DeleteSchedule`。
-- IAM: バッチ用・Scheduler用の2ロールについて、既存API用と同じロール作成・取得・削除・タグ管理・信頼ポリシー更新・インラインポリシー管理の権限を追加します。`iam:PassRole` はバッチ用を `lambda.amazonaws.com`、Scheduler用を `scheduler.amazonaws.com` に限定します。
-- Lambda: 対象関数に既存API用の管理権限を適用し、`lambda:PutFunctionEventInvokeConfig` / `GetFunctionEventInvokeConfig` / `DeleteFunctionEventInvokeConfig` を追加します。
-- CloudWatch Logs: 対象ロググループの作成・取得・削除・保持期間・タグ管理を許可します。成果物S3には既存バケットの `monthly/*` プレフィックスも配置・更新・削除できるようにします。
+月次集計のデプロイ権限は `infra/iam/policies/` の events・iam・lambda・s3 に含まれます（担当と対象は [IAM README](../infra/iam/README.md)）。実環境の IAM 変更は人間がスクリプトで反映します。Lambda 実行ロールへの追加ではありません。
 
 更新前は11章に従いAPIとバッチの両ZIP、コード、設定を同じリリースとして退避します。手動復旧では両ZIPと対応コード・通知先設定をそろえてplanを確認してからapplyします。CDで戻す場合は既存どおりrevertのPR・CI・production承認を通します。DBの巻き戻しはありません。接続Secretを変更した場合、APIとバッチ両方の環境変数更新をplanで確認します。
 
 削除前にSchedulerを無効化し、既に受理された非同期実行が残っていないか確認します。13章の削除対象に月次Lambda・非同期設定・Scheduler・グループ・両IAMロール/ポリシー・SNS購読/トピック・ロググループ・`aws_s3_object.monthly_zip` を含めます。ログ保持が必要なら削除前に退避します。成果物・stateバケットの保持と管理解除は13章の既存手順を適用し、DBや既存Secretは削除しません。
 
 - [ ] productionの `MONTHLY_NOTIFICATION_EMAIL` と手動tfvarsの通知先をそろえた
-- [ ] デプロイロール権限を対象リソースへ追加し、両ZIPの生成・plan/applyを確認した
+- [ ] 正本 JSON を確認して人間がスクリプトで反映し、差分なし・両ZIPの生成・plan/applyを確認した
 - [ ] SNS購読承認を完了し、手動非同期起動で対象月・全項目・0件月を確認した
 - [ ] CloudWatch LogsとSchedulerの有効状態・次の実行日時を確認した
 - [ ] 専用検証環境で失敗ログ・非同期再試行を確認し、重複する可能性を理解した
@@ -1408,19 +1177,14 @@ aws logs tail "/aws/lambda/$SUBSCRIPTION_FUNCTION" --since 10m
 
 ### デプロイ権限と更新・復旧・削除
 
-実環境のIAM変更は人間が行います。16章の月次系ポリシーの方針に従い、デプロイロールの管理権限に以下の対象を追加します。登録Lambdaの実行ロールは専用ログへの `logs:CreateLogStream` / `logs:PutLogEvents` のみで、SNS権限は不要です。
-
-- Lambda: `arn:aws:lambda:<REGION>:<ACCOUNT_ID>:function:<NAME_PREFIX>-monthly-subscriptions` に15章のAPI用の作成・取得・コード/設定更新・削除・タグ管理権限と、`lambda:PutFunctionEventInvokeConfig` / `lambda:GetFunctionEventInvokeConfig` / `lambda:DeleteFunctionEventInvokeConfig` を許可します。
-- IAM: `arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-monthly-subscriptions-lambda` と同じ接頭辞の `-scheduler` ロールへ、`iam:CreateRole` / `iam:GetRole` / `iam:DeleteRole` / `iam:UpdateRole` / `iam:UpdateAssumeRolePolicy` / `iam:ListRolePolicies` / `iam:GetRolePolicy` / `iam:PutRolePolicy` / `iam:DeleteRolePolicy` / `iam:ListAttachedRolePolicies` / `iam:ListInstanceProfilesForRole` / `iam:ListRoleTags` / `iam:TagRole` / `iam:UntagRole` を許可します。`iam:PassRole` はこの2ロールに限定し、`iam:PassedToService` をそれぞれ `lambda.amazonaws.com` / `scheduler.amazonaws.com` に限定します。
-- Scheduler: `arn:aws:scheduler:<REGION>:<ACCOUNT_ID>:schedule/<NAME_PREFIX>-monthly/<NAME_PREFIX>-monthly-subscriptions` に `scheduler:CreateSchedule` / `scheduler:GetSchedule` / `scheduler:UpdateSchedule` / `scheduler:DeleteSchedule` を許可します。既存グループ `<NAME_PREFIX>-monthly` の管理権限は16章の設定を再利用します。Scheduler実行ロールの信頼条件は同一アカウント・同グループARNに限定し、起動権限は登録Lambdaのみです。
-- CloudWatch Logs: `/aws/lambda/<NAME_PREFIX>-monthly-subscriptions` のロググループARNに `logs:CreateLogGroup` / `logs:DeleteLogGroup` / `logs:PutRetentionPolicy` / `logs:DeleteRetentionPolicy` / `logs:ListTagsForResource` / `logs:TagResource` / `logs:UntagResource` を許可します。`logs:DescribeLogGroups` 等の一覧取得は既存ポリシーと同様、リソース制限をサポートしないアクションのみ `Resource: "*"` の別Statementにします。運用者には対象ログの閲覧権限も付与します。
+月初登録のデプロイ権限は `infra/iam/policies/` の lambda・iam・events に含まれます（担当は [IAM README](../infra/iam/README.md)）。実環境の反映は人間が行います。登録 Lambda の実行ロールは専用ログへの CreateLogStream / PutLogEvents のみで、SNS 権限は不要です。Scheduler 実行ロールの信頼条件は同一アカウント・同グループ ARN に限定し、起動権限は登録 Lambda のみです。運用者には対象ログの閲覧権限も付与します。
 
 ZIPは通知と共用なので成果物S3の追加バケット・プレフィックス権限は不要です。接続Secretの変更時はAPI・通知・登録の3関数の環境変数更新をplanで確認します。復旧は11・16章の同一リリースのコードと両ZIPを使い、DBを巻き戻しません。
 
 廃止・登録機能のロールバック前には登録Schedulerを無効化し、受理済みの非同期実行を確認します。13章の削除対象に登録Lambda・非同期設定・登録Scheduler・登録用の両IAMロール/インラインポリシー・専用ロググループを含めます。ログは必要に応じて退避します。通知が残る間は共用スケジュールグループと `aws_s3_object.monthly_zip` を削除しません。台帳を消すと再実行で再登録され得るため、台帳・収支データは保持します。
 
 - [ ] マイグレーションとDB権限の確認をLambda配置より先に完了した
-- [ ] デプロイ権限追加とplan/applyを確認した
+- [ ] 正本 JSON を確認して人間がスクリプトで反映し、差分なしとplan/applyを確認した
 - [ ] 手動起動で対象月・登録値・同月再実行時の二重登録防止を確認した
 - [ ] 専用ログとSchedulerの有効状態・次回実行日時を確認した
 
@@ -1431,9 +1195,9 @@ ZIPは通知と共用なので成果物S3の追加バケット・プレフィッ
 
 JPEG・PNG・WebP の 1 バイト〜10 MiB を画面と API で検証します。API のサイズは自己申告で、S3 側ではサイズ上限を強制しません。キーは `receipts/<GUID>.<拡張子>`、署名は Content-Type を含む PUT 専用・5 分です。URL は有効期限内の認証情報として扱い、ログや外部へ共有しないでください。
 
-バケットは公開アクセス全ブロック・AES256 暗号化・BucketOwnerEnforced、全オブジェクトと未完了マルチパートを 7 日で削除します。ライフサイクルによる削除は即時ではありません。`force_destroy=false`、`prevent_destroy` は付けません。削除時はバケットを空にする必要があります。API ロールにはこのバケットの `receipts/*` への `s3:PutObject` のみを追加します。
+バケットは公開アクセス全ブロック・AES256 暗号化・BucketOwnerEnforced、全オブジェクトと未完了マルチパートを 7 日で削除します。ライフサイクルによる削除は即時ではありません。`force_destroy=false`、`prevent_destroy` は付けません。削除時はバケットを空にする必要があります。API ロールにはこのバケットの `receipts/*` への PutObject のみを追加します。
 
-デプロイ実行主体は、このバケットに既存の作成・暗号化・所有者・公開ブロック・タグ管理権限に加え、`s3:GetBucketCORS` / `s3:PutBucketCORS` / `s3:GetLifecycleConfiguration` / `s3:PutLifecycleConfiguration` を必要とします。API ロールのインラインポリシー管理には `iam:GetRolePolicy` / `iam:PutRolePolicy` / `iam:DeleteRolePolicy` が必要です。権限変更と apply はユーザーが行います。
+バケット管理と API 実行ロールのインラインポリシー管理に必要なデプロイ権限は `infra/iam/policies/` の s3・iam に含まれます（担当は [IAM README](../infra/iam/README.md)）。権限の反映と apply は人間が行います。
 
 Terraform テストは新バケットの公開ブロック・暗号化・所有者・命名・削除設定・7 日ルール・CORS・PutObject 限定権限・Lambda 環境変数を検証します。既存の API Gateway の CORS なしと既存ロールの権限検証も維持します。
 
@@ -1468,43 +1232,9 @@ S3の `receipts/` へのObjectCreated → 専用解析Lambda → Bedrock → DB�
 
 ### デプロイロールの追加権限
 
-実環境のIAM変更は人間が行います。15章のAPI用管理権限の対象に解析Lambdaを追加し、以下のポリシー例をデプロイロールへ追加します。`<REGION>`・`<ACCOUNT_ID>`・`<NAME_PREFIX>`・`<RECEIPTS_BUCKET>`を実値へ置き換えます。BedrockリソースをTerraformで作らないため、デプロイロールにBedrock呼び出し権限は不要です。
+解析 Lambda・実行ロール・ロググループ・S3 通知のデプロイ権限は `infra/iam/policies/` の lambda・iam・s3 に含まれます（担当は [IAM README](../infra/iam/README.md)）。実環境の反映は人間が行います。Bedrock リソースを Terraform で作らないため、デプロイロールに Bedrock 呼び出し権限は不要です。
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["lambda:CreateFunction", "lambda:GetFunction", "lambda:GetFunctionConfiguration", "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration", "lambda:DeleteFunction", "lambda:ListTags", "lambda:TagResource", "lambda:UntagResource", "lambda:AddPermission", "lambda:RemovePermission", "lambda:GetPolicy", "lambda:PutFunctionEventInvokeConfig", "lambda:GetFunctionEventInvokeConfig", "lambda:DeleteFunctionEventInvokeConfig"],
-      "Resource": "arn:aws:lambda:<REGION>:<ACCOUNT_ID>:function:<NAME_PREFIX>-receipt-analysis"
-    },
-    {
-      "Effect": "Allow",
-      "Action": ["iam:CreateRole", "iam:GetRole", "iam:DeleteRole", "iam:UpdateRole", "iam:UpdateAssumeRolePolicy", "iam:ListRoleTags", "iam:TagRole", "iam:UntagRole", "iam:PutRolePolicy", "iam:GetRolePolicy", "iam:DeleteRolePolicy", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole"],
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-receipt-analysis-lambda"
-    },
-    {
-      "Effect": "Allow",
-      "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/<NAME_PREFIX>-receipt-analysis-lambda",
-      "Condition": {"StringEquals": {"iam:PassedToService": "lambda.amazonaws.com"}}
-    },
-    {
-      "Effect": "Allow",
-      "Action": ["logs:CreateLogGroup", "logs:DeleteLogGroup", "logs:PutRetentionPolicy", "logs:DeleteRetentionPolicy", "logs:ListTagsForResource", "logs:TagResource", "logs:UntagResource"],
-      "Resource": "arn:aws:logs:<REGION>:<ACCOUNT_ID>:log-group:/aws/lambda/<NAME_PREFIX>-receipt-analysis:*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": ["s3:GetBucketNotification", "s3:PutBucketNotification"],
-      "Resource": "arn:aws:s3:::<RECEIPTS_BUCKET>"
-    }
-  ]
-}
-```
-
-一覧取得などリソース制限をサポートしない管理アクションは15章の既存権限を使います。解析実行ロールは専用で、推論プロファイルへのInvokeModel、そのプロファイルを条件にした基盤モデルへのInvokeModel、`receipts/*` のGetObject、専用ログへのCreateLogStream/PutLogEventsの4 Statementだけです。管理ポリシーは付けません。
+解析実行ロールは専用で、推論プロファイルへのInvokeModel、そのプロファイルを条件にした基盤モデルへのInvokeModel、`receipts/*` のGetObject、専用ログへのCreateLogStream/PutLogEventsの4 Statementだけです。管理ポリシーは付けません。
 
 ### 失敗・再試行・更新・削除
 
@@ -1521,7 +1251,7 @@ S3クライアントのタイムアウトは10秒、Bedrockクライアントは
 ### 実環境の確認チェックリスト
 
 - [ ] マイグレーション適用・DB権限確認を先に完了した
-- [ ] デプロイロールに対象リソースだけの管理権限を追加した
+- [ ] 正本 JSON を確認して人間がスクリプトで反映し、差分なしを確認した
 - [ ] モデルIDの実在確認済み（2026-11-11）。本アカウントでのアクセス有効化・画像付きPlayground呼び出しを確認した
 - [ ] AWSの料金表・コンソールで日本向けの最新単価を再確認した（AWSページの数値は実装時に直接取得できず、公式提供元の料金表で補完）
 - [ ] plan/apply後に本番画面から画像をアップロードし、upload-urlレスポンスのjobIdで認証済み `GET /api/receipts/{jobId}` が「完了」になることと候補を確認した（画面の結果表示は後続Issue）
