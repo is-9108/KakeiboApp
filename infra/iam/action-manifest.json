@@ -1,0 +1,593 @@
+{
+  "version": 1,
+  "resourceTypes": {
+    "aws_s3_bucket": {
+      "arn": "arn:aws:s3:::{bucket}",
+      "create": [
+        "s3:CreateBucket",
+        "s3:PutBucketTagging"
+      ],
+      "read": [
+        "s3:GetBucketAcl",
+        "s3:GetBucketCORS",
+        "s3:GetBucketWebsite",
+        "s3:GetBucketVersioning",
+        "s3:GetBucketLogging",
+        "s3:GetBucketRequestPayment",
+        "s3:GetBucketObjectLockConfiguration",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketTagging",
+        "s3:GetBucketLocation",
+        "s3:GetAccelerateConfiguration",
+        "s3:GetEncryptionConfiguration",
+        "s3:GetLifecycleConfiguration",
+        "s3:GetReplicationConfiguration",
+        "s3:ListBucket"
+      ],
+      "update": [
+        "s3:PutBucketTagging"
+      ],
+      "delete": [
+        "s3:DeleteBucket",
+        "s3:ListBucket"
+      ]
+    },
+    "aws_s3_bucket_public_access_block": {
+      "arn": "arn:aws:s3:::{bucket}",
+      "create": [
+        "s3:PutBucketPublicAccessBlock"
+      ],
+      "read": [
+        "s3:GetBucketPublicAccessBlock"
+      ],
+      "update": [
+        "s3:PutBucketPublicAccessBlock"
+      ],
+      "delete": [
+        "s3:PutBucketPublicAccessBlock",
+        "s3:GetBucketPublicAccessBlock"
+      ]
+    },
+    "aws_s3_bucket_server_side_encryption_configuration": {
+      "arn": "arn:aws:s3:::{bucket}",
+      "create": [
+        "s3:PutEncryptionConfiguration"
+      ],
+      "read": [
+        "s3:GetEncryptionConfiguration"
+      ],
+      "update": [
+        "s3:PutEncryptionConfiguration"
+      ],
+      "delete": [
+        "s3:PutEncryptionConfiguration"
+      ]
+    },
+    "aws_s3_bucket_ownership_controls": {
+      "arn": "arn:aws:s3:::{bucket}",
+      "create": [
+        "s3:PutBucketOwnershipControls"
+      ],
+      "read": [
+        "s3:GetBucketOwnershipControls"
+      ],
+      "update": [
+        "s3:PutBucketOwnershipControls"
+      ],
+      "delete": [
+        "s3:PutBucketOwnershipControls",
+        "s3:GetBucketOwnershipControls"
+      ]
+    },
+    "aws_s3_bucket_lifecycle_configuration": {
+      "arn": "arn:aws:s3:::{bucket}",
+      "create": [
+        "s3:PutLifecycleConfiguration"
+      ],
+      "read": [
+        "s3:GetLifecycleConfiguration"
+      ],
+      "update": [
+        "s3:PutLifecycleConfiguration"
+      ],
+      "delete": [
+        "s3:PutLifecycleConfiguration"
+      ]
+    },
+    "aws_s3_bucket_cors_configuration": {
+      "arn": "arn:aws:s3:::{bucket}",
+      "create": [
+        "s3:PutBucketCORS"
+      ],
+      "read": [
+        "s3:GetBucketCORS"
+      ],
+      "update": [
+        "s3:PutBucketCORS"
+      ],
+      "delete": [
+        "s3:PutBucketCORS",
+        "s3:GetBucketCORS"
+      ]
+    },
+    "aws_s3_bucket_notification": {
+      "arn": "arn:aws:s3:::{bucket}",
+      "create": [
+        "s3:PutBucketNotification"
+      ],
+      "read": [
+        "s3:GetBucketNotification"
+      ],
+      "update": [
+        "s3:PutBucketNotification"
+      ],
+      "delete": [
+        "s3:PutBucketNotification"
+      ]
+    },
+    "aws_s3_bucket_policy": {
+      "arn": "arn:aws:s3:::{bucket}",
+      "create": [
+        "s3:PutBucketPolicy"
+      ],
+      "read": [
+        "s3:GetBucketPolicy"
+      ],
+      "update": [
+        "s3:PutBucketPolicy"
+      ],
+      "delete": [
+        "s3:DeleteBucketPolicy",
+        "s3:GetBucketPolicy"
+      ]
+    },
+    "aws_s3_object": {
+      "arn": "arn:aws:s3:::{bucket}/{key}",
+      "create": [
+        "s3:PutObject",
+        "s3:PutObjectTagging"
+      ],
+      "read": [
+        "s3:GetObject",
+        "s3:GetObjectTagging"
+      ],
+      "update": [
+        "s3:PutObject",
+        "s3:PutObjectTagging",
+        "s3:DeleteObjectTagging"
+      ],
+      "delete": [
+        "s3:DeleteObject"
+      ]
+    },
+    "aws_iam_role": {
+      "arn": "arn:aws:iam::{account}:role/{name}",
+      "create": [
+        "iam:CreateRole",
+        "iam:TagRole"
+      ],
+      "read": [
+        "iam:GetRole",
+        "iam:ListRolePolicies",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListInstanceProfilesForRole"
+      ],
+      "update": [
+        "iam:UpdateRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "delete": [
+        "iam:DeleteRole",
+        "iam:DeleteRolePolicy",
+        "iam:ListInstanceProfilesForRole"
+      ]
+    },
+    "aws_iam_role_policy": {
+      "arn": "arn:aws:iam::{account}:role/{role}",
+      "create": [
+        "iam:PutRolePolicy"
+      ],
+      "read": [
+        "iam:GetRolePolicy"
+      ],
+      "update": [
+        "iam:PutRolePolicy"
+      ],
+      "delete": [
+        "iam:DeleteRolePolicy"
+      ]
+    },
+    "aws_iam_role_policy_attachment": {
+      "arn": "arn:aws:iam::{account}:role/{role}",
+      "create": [
+        {
+          "action": "iam:AttachRolePolicy",
+          "context": {
+            "iam:PolicyARN": "{policy_arn}"
+          }
+        }
+      ],
+      "read": [
+        "iam:ListAttachedRolePolicies"
+      ],
+      "update": [],
+      "delete": [
+        {
+          "action": "iam:DetachRolePolicy",
+          "context": {
+            "iam:PolicyARN": "{policy_arn}"
+          }
+        }
+      ]
+    },
+    "aws_cloudwatch_log_group": {
+      "arn": "arn:aws:logs:{region}:{account}:log-group:{name}",
+      "create": [
+        "logs:CreateLogGroup",
+        "logs:PutRetentionPolicy",
+        "logs:TagResource"
+      ],
+      "read": [
+        {
+          "action": "logs:DescribeLogGroups",
+          "arn": "*"
+        },
+        "logs:ListTagsForResource"
+      ],
+      "update": [
+        "logs:PutRetentionPolicy",
+        "logs:DeleteRetentionPolicy",
+        "logs:TagResource",
+        "logs:UntagResource"
+      ],
+      "delete": [
+        "logs:DeleteLogGroup"
+      ]
+    },
+    "aws_lambda_function": {
+      "arn": "arn:aws:lambda:{region}:{account}:function:{function_name}",
+      "create": [
+        "lambda:CreateFunction",
+        "lambda:TagResource",
+        {
+          "action": "iam:PassRole",
+          "arn": "{role}",
+          "context": {
+            "iam:PassedToService": "lambda.amazonaws.com"
+          }
+        },
+        {
+          "action": "s3:GetObject",
+          "arn": "arn:aws:s3:::{s3_bucket}/{s3_key}",
+          "requires": "s3_bucket"
+        }
+      ],
+      "read": [
+        "lambda:GetFunction",
+        "lambda:GetFunctionCodeSigningConfig",
+        "lambda:ListVersionsByFunction",
+        "lambda:GetFunctionConfiguration"
+      ],
+      "update": [
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:TagResource",
+        "lambda:UntagResource",
+        {
+          "action": "iam:PassRole",
+          "arn": "{role}",
+          "context": {
+            "iam:PassedToService": "lambda.amazonaws.com"
+          }
+        },
+        {
+          "action": "s3:GetObject",
+          "arn": "arn:aws:s3:::{s3_bucket}/{s3_key}",
+          "requires": "s3_bucket"
+        }
+      ],
+      "delete": [
+        "lambda:DeleteFunction",
+        "lambda:GetFunction"
+      ]
+    },
+    "aws_lambda_function_event_invoke_config": {
+      "arn": "arn:aws:lambda:{region}:{account}:function:{function_name}",
+      "create": [
+        "lambda:PutFunctionEventInvokeConfig"
+      ],
+      "read": [
+        "lambda:GetFunctionEventInvokeConfig"
+      ],
+      "update": [
+        "lambda:PutFunctionEventInvokeConfig"
+      ],
+      "delete": [
+        "lambda:DeleteFunctionEventInvokeConfig"
+      ]
+    },
+    "aws_lambda_permission": {
+      "arn": "arn:aws:lambda:{region}:{account}:function:{function_name}",
+      "create": [
+        "lambda:AddPermission"
+      ],
+      "read": [
+        "lambda:GetPolicy"
+      ],
+      "update": [],
+      "delete": [
+        "lambda:RemovePermission",
+        "lambda:GetPolicy"
+      ]
+    },
+    "aws_apigatewayv2_api": {
+      "arn": "arn:aws:apigateway:{region}::/apis/{id}",
+      "create": [
+        {
+          "action": "apigateway:POST",
+          "arn": "arn:aws:apigateway:{region}::/apis"
+        },
+        {
+          "action": "apigateway:POST",
+          "arn": "arn:aws:apigateway:{region}::/tags/arn:aws:apigateway:{region}::/apis/{id}"
+        }
+      ],
+      "read": [
+        "apigateway:GET"
+      ],
+      "update": [
+        "apigateway:PATCH",
+        "apigateway:PUT",
+        {
+          "action": "apigateway:POST",
+          "arn": "arn:aws:apigateway:{region}::/tags/arn:aws:apigateway:{region}::/apis/{id}"
+        },
+        {
+          "action": "apigateway:DELETE",
+          "arn": "arn:aws:apigateway:{region}::/tags/arn:aws:apigateway:{region}::/apis/{id}"
+        }
+      ],
+      "delete": [
+        "apigateway:DELETE"
+      ]
+    },
+    "aws_apigatewayv2_integration": {
+      "arn": "arn:aws:apigateway:{region}::/apis/{api_id}/integrations/{id}",
+      "create": [
+        {
+          "action": "apigateway:POST",
+          "arn": "arn:aws:apigateway:{region}::/apis/{api_id}/integrations"
+        }
+      ],
+      "read": [
+        "apigateway:GET"
+      ],
+      "update": [
+        "apigateway:PATCH"
+      ],
+      "delete": [
+        "apigateway:DELETE"
+      ]
+    },
+    "aws_apigatewayv2_route": {
+      "arn": "arn:aws:apigateway:{region}::/apis/{api_id}/routes/{id}",
+      "create": [
+        {
+          "action": "apigateway:POST",
+          "arn": "arn:aws:apigateway:{region}::/apis/{api_id}/routes"
+        }
+      ],
+      "read": [
+        "apigateway:GET"
+      ],
+      "update": [
+        "apigateway:PATCH"
+      ],
+      "delete": [
+        "apigateway:DELETE"
+      ]
+    },
+    "aws_apigatewayv2_stage": {
+      "arn": "arn:aws:apigateway:{region}::/apis/{api_id}/stages/{name}",
+      "create": [
+        {
+          "action": "apigateway:POST",
+          "arn": "arn:aws:apigateway:{region}::/apis/{api_id}/stages"
+        },
+        {
+          "action": "apigateway:POST",
+          "arn": "arn:aws:apigateway:{region}::/tags/arn:aws:apigateway:{region}::/apis/{api_id}/stages/{name}"
+        }
+      ],
+      "read": [
+        "apigateway:GET"
+      ],
+      "update": [
+        "apigateway:PATCH",
+        {
+          "action": "apigateway:POST",
+          "arn": "arn:aws:apigateway:{region}::/tags/arn:aws:apigateway:{region}::/apis/{api_id}/stages/{name}"
+        },
+        {
+          "action": "apigateway:DELETE",
+          "arn": "arn:aws:apigateway:{region}::/tags/arn:aws:apigateway:{region}::/apis/{api_id}/stages/{name}"
+        }
+      ],
+      "delete": [
+        "apigateway:DELETE"
+      ]
+    },
+    "aws_cloudfront_origin_access_control": {
+      "arn": "arn:aws:cloudfront::{account}:origin-access-control/{id}",
+      "create": [
+        {
+          "action": "cloudfront:CreateOriginAccessControl",
+          "arn": "*"
+        }
+      ],
+      "read": [
+        "cloudfront:GetOriginAccessControl",
+        "cloudfront:GetOriginAccessControlConfig"
+      ],
+      "update": [
+        "cloudfront:UpdateOriginAccessControl"
+      ],
+      "delete": [
+        "cloudfront:DeleteOriginAccessControl"
+      ]
+    },
+    "aws_cloudfront_function": {
+      "arn": "arn:aws:cloudfront::{account}:function/{name}",
+      "create": [
+        {
+          "action": "cloudfront:CreateFunction",
+          "arn": "*"
+        },
+        "cloudfront:PublishFunction",
+        "cloudfront:TagResource"
+      ],
+      "read": [
+        "cloudfront:DescribeFunction",
+        "cloudfront:GetFunction",
+        "cloudfront:ListTagsForResource"
+      ],
+      "update": [
+        "cloudfront:UpdateFunction",
+        "cloudfront:PublishFunction",
+        "cloudfront:TagResource",
+        "cloudfront:UntagResource"
+      ],
+      "delete": [
+        "cloudfront:DeleteFunction"
+      ]
+    },
+    "aws_cloudfront_distribution": {
+      "arn": "arn:aws:cloudfront::{account}:distribution/{id}",
+      "create": [
+        {
+          "action": "cloudfront:CreateDistribution",
+          "arn": "*"
+        },
+        "cloudfront:TagResource"
+      ],
+      "read": [
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:ListTagsForResource"
+      ],
+      "update": [
+        "cloudfront:UpdateDistribution",
+        "cloudfront:TagResource",
+        "cloudfront:UntagResource"
+      ],
+      "delete": [
+        "cloudfront:UpdateDistribution",
+        "cloudfront:DeleteDistribution",
+        "cloudfront:GetDistribution"
+      ]
+    },
+    "aws_sns_topic": {
+      "arn": "arn:aws:sns:{region}:{account}:{name}",
+      "create": [
+        "sns:CreateTopic",
+        "sns:TagResource"
+      ],
+      "read": [
+        "sns:GetTopicAttributes",
+        "sns:ListTagsForResource"
+      ],
+      "update": [
+        "sns:SetTopicAttributes",
+        "sns:TagResource",
+        "sns:UntagResource"
+      ],
+      "delete": [
+        "sns:DeleteTopic"
+      ]
+    },
+    "aws_sns_topic_subscription": {
+      "arn": "{topic_arn}",
+      "create": [
+        "sns:Subscribe"
+      ],
+      "read": [
+        "sns:GetSubscriptionAttributes"
+      ],
+      "update": [
+        "sns:SetSubscriptionAttributes"
+      ],
+      "delete": [
+        "sns:Unsubscribe",
+        "sns:GetSubscriptionAttributes"
+      ]
+    },
+    "aws_scheduler_schedule_group": {
+      "arn": "arn:aws:scheduler:{region}:{account}:schedule-group/{name}",
+      "create": [
+        "scheduler:CreateScheduleGroup",
+        "scheduler:TagResource"
+      ],
+      "read": [
+        "scheduler:GetScheduleGroup",
+        "scheduler:ListTagsForResource"
+      ],
+      "update": [
+        "scheduler:TagResource",
+        "scheduler:UntagResource"
+      ],
+      "delete": [
+        "scheduler:DeleteScheduleGroup",
+        "scheduler:GetScheduleGroup"
+      ]
+    },
+    "aws_scheduler_schedule": {
+      "arn": "arn:aws:scheduler:{region}:{account}:schedule/{group_name}/{name}",
+      "create": [
+        "scheduler:CreateSchedule",
+        {
+          "action": "iam:PassRole",
+          "arn": "{target.0.role_arn}",
+          "context": {
+            "iam:PassedToService": "scheduler.amazonaws.com"
+          }
+        }
+      ],
+      "read": [
+        "scheduler:GetSchedule"
+      ],
+      "update": [
+        "scheduler:UpdateSchedule",
+        {
+          "action": "iam:PassRole",
+          "arn": "{target.0.role_arn}",
+          "context": {
+            "iam:PassedToService": "scheduler.amazonaws.com"
+          }
+        }
+      ],
+      "delete": [
+        "scheduler:DeleteSchedule"
+      ]
+    },
+    "data.aws_caller_identity": {
+      "arn": "*",
+      "create": [],
+      "read": [
+        "sts:GetCallerIdentity"
+      ],
+      "update": [],
+      "delete": []
+    },
+    "data.aws_secretsmanager_secret_version": {
+      "arn": "{secret_id}",
+      "create": [],
+      "read": [
+        "secretsmanager:GetSecretValue"
+      ],
+      "update": [],
+      "delete": []
+    }
+  }
+}

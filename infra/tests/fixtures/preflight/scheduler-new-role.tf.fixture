@@ -1,0 +1,28 @@
+terraform {
+  required_providers {
+    aws = { source = "hashicorp/aws", version = "6.71.0" }
+  }
+}
+provider "aws" {
+  region = "ap-northeast-1"
+  access_key = "offline"
+  secret_key = "offline"
+  skip_credentials_validation = true
+  skip_requesting_account_id = true
+  skip_metadata_api_check = true
+  skip_region_validation = true
+}
+resource "aws_iam_role" "scheduler" {
+  name = "kakeibo-monthly-subscriptions-scheduler"
+  assume_role_policy = jsonencode({Version = "2012-10-17", Statement = []})
+}
+resource "aws_scheduler_schedule" "monthly" {
+  name = "kakeibo-monthly-subscriptions"
+  group_name = "kakeibo-monthly"
+  schedule_expression = "rate(1 day)"
+  flexible_time_window { mode = "OFF" }
+  target {
+    arn = "arn:aws:lambda:ap-northeast-1:255737342820:function:kakeibo-monthly-subscriptions"
+    role_arn = aws_iam_role.scheduler.arn
+  }
+}

@@ -11,6 +11,14 @@
     },
     {
       "Action": [
+        "iam:SimulatePrincipalPolicy"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:iam::255737342820:role/kakeibo-github-deploy",
+      "Sid": "SimulateDeployRole"
+    },
+    {
+      "Action": [
         "iam:CreateRole",
         "iam:DeleteRole",
         "iam:DeleteRolePolicy",

@@ -9,7 +9,7 @@
 | `kakeibo-github-deploy-core.json` | 管理 | state の対象キー・ロック、DB Secret 完全一致、Lambda ログ参照、リソース制限非対応アクション | 1172 | 19.1% |
 | `kakeibo-github-deploy-edge.json` | 管理 | 既存 Distribution / OAC / API ID、function/kakeibo-* | 1521 | 24.8% |
 | `kakeibo-github-deploy-events.json` | 管理 | kakeibo-* SNS、schedule-group/kakeibo-*、schedule/kakeibo-*/* | 869 | 14.1% |
-| `kakeibo-github-deploy-iam.json` | 管理 | 実行ロール、サービス別 PassRole、自己昇格防止 Deny | 2123 | 34.6% |
+| `kakeibo-github-deploy-iam.json` | 管理 | 実行ロール、サービス別 PassRole、自ロールのシミュレーション、自己昇格防止 Deny | 2276 | 37.0% |
 | `kakeibo-github-deploy-lambda.json` | 管理 | function:kakeibo-*、/aws/lambda/kakeibo-* ロググループ | 979 | 15.9% |
 | `kakeibo-github-deploy-s3.json` | 管理 | site / artifacts / receipts バケット、site / artifacts オブジェクト | 1313 | 21.4% |
 
@@ -29,6 +29,18 @@
 - 8本または4,915文字を超えそうなら再編します。まずワイルドカード化・Statement 統合を検討し、足りなければ担当サービスを分割します。管理ポリシーの既定上限は10本です。
 - 未マージのブランチから反映した PR を閉じる場合は main の正本から再反映します。
 - ログには ARN が出ます。出力を公開の場に貼らないでください。
+
+## デプロイ権限プリフライト
+
+`action-manifest.json` は、現行 Terraform の managed 27 タイプと data 2 タイプの必要アクション・ARN・条件コンテキストを管理します。`infra/*.tf` にタイプを追加したら同じ PR で追記し、`node --test 'infra/tests/**/*.test.mjs'` で登録漏れと正本ポリシーとの整合を確認します。default_tags、作成後・削除後の待機読み取りも含めて保守します。現行構成で使っていないオプション（KMS、IAM permissions boundary、Lambda layers / concurrency など）を導入する際も provider と照合し直します。
+
+`preflight-iam.mjs` は apply 前に、ロールに実際に付いているポリシーを `iam:SimulatePrincipalPolicy` で評価します。`SimulateDeployRole` は読み取り専用の例外で、対象はデプロイロール自身の完全一致 ARN だけです。P4 の例外もこの1アクションだけとし、P10 で対象を固定しています。マージ前に人間が正本を反映してください。
+
+マニフェストの各タイプは `arn` と `create` / `read` / `update` / `delete` 配列を持ちます。配列は具体的アクション名、または `{ "action", "arn"?, "context"?, "requires"? }` です。`{account}` / `{region}` / 属性パスを展開し、`requires` が null・空・欠落なら省き、未確定なら評価します。新しい属性プレースホルダーを追加するときはスクリプトの許可属性も更新します。
+
+IAM role の delete に `DetachRolePolicy` を直接含めていません。現行構成は別リソース `aws_iam_role_policy_attachment` で管理しており、その削除時に `iam:PolicyARN` を指定して評価します。role 単体では対象ポリシー ARN を決定できず、provider の `force_detach_policies` / `managed_policy_arns` も使っていないためです。
+
+2026-11-14 に AWS provider v6.71.0 と Service Authorization Reference を照合しました。SNS subscription の Get / Set / Unsubscribe は topic ARN を使用します。API / stage のタグ変更は `/tags/<resource ARN>`、CloudFront Function のタグ、Lambda の待機、削除待機の読み取りを初期案に補っています。照合 URL と対象ファイルの一覧は実装報告に記録します。実行方法・出力・一時回避は [デプロイ手順](../../docs/deployment.md#apply-前の-iam-プリフライト) を参照してください。
 
 ## 実行方法
 

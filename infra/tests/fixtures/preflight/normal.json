@@ -1,0 +1,6 @@
+{
+  "resource_changes": [
+    {"address":"aws_s3_object.api_zip","mode":"managed","type":"aws_s3_object","change":{"actions":["delete","create"],"before":{"bucket":"kakeibo-artifacts-255737342820-ap-northeast-1","key":"old.zip"},"after":{"bucket":"kakeibo-artifacts-255737342820-ap-northeast-1","key":"new.zip"}}},
+    {"address":"aws_lambda_function.api","mode":"managed","type":"aws_lambda_function","change":{"actions":["update"],"after":{"function_name":"kakeibo-api","role":"arn:aws:iam::255737342820:role/kakeibo-api-lambda","s3_bucket":"kakeibo-artifacts-255737342820-ap-northeast-1","s3_key":"new.zip","environment":[{"variables":{"connection":"SECRET-SHOULD-NOT-APPEAR"}}]}}}
+  ]
+}

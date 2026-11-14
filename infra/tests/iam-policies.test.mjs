@@ -13,7 +13,7 @@ const matches = (pattern, value) => new RegExp(`^${pattern.replace(/[.+^${}()|[\
 const allows = (s, action, resource) => s.Effect === 'Allow' && array(s.Action).some(p => matches(p, action)) && array(s.Resource).some(p => matches(p, resource));
 const fixture = (Action, Resource, Condition) => ({ Effect: 'Allow', Action, Resource, ...(Condition ? { Condition } : {}) });
 function safeIam(s) {
-  const write = array(s.Action).some(a => matches(a.split(':')[0], 'iam') && !/^iam:(Get|List)[A-Za-z*?]*$/i.test(a));
+  const write = array(s.Action).some(a => matches(a.split(':')[0], 'iam') && !/^iam:(Get|List)[A-Za-z*?]*$/i.test(a) && a !== 'iam:SimulatePrincipalPolicy');
   return s.Effect !== 'Allow' || !write || array(s.Resource).every(r => !matches(r, role) && !matches(policyArn.replace(/core$/, '*'), r) && ![...files.map(n => n.replace(/\.json$/, '')), 'kakeibo-github-deploy-zzz'].some(n => matches(r, policyArn.replace(/kakeibo-github-deploy-core$/, n))));
 }
 const state = 'arn:aws:s3:::kakeibo-terraform-state-255737342820/kakeibo/terraform.tfstate';
@@ -114,4 +114,19 @@ test('P9: Secret 読み取りの Allow はワイルドカードのない具体�
   }
   assert.ok(safeSecret({ ...fixture('secretsmanager:GetSecretValue', '*'), Effect: 'Deny' }));
   assert.ok(safeSecret(fixture('secretsmanager:DescribeSecret', '*')));
+});
+
+function safeSimulation(s) {
+  if (s.Effect !== 'Allow' || !array(s.Action).some(a => matches(a, 'iam:SimulatePrincipalPolicy'))) return true;
+  return array(s.Resource).length === 1 && array(s.Resource)[0] === role;
+}
+test('T22: シミュレーションの読み取り例外は1アクションの完全一致だけ', () => {
+  assert.ok(safeIam(fixture('iam:SimulatePrincipalPolicy', role)));
+  for (const a of ['iam:SimulateCustomPolicy', 'iam:Simulate*', 'iam:PutRolePolicy']) assert.equal(safeIam(fixture(a, role)), false);
+});
+test('P10・T23: 実ロールのシミュレーションは自身の完全一致 ARN のみに限定する', () => {
+  assert.ok(statements.every(safeSimulation));
+  assert.ok(statements.some(s => s.Sid === 'SimulateDeployRole' && allows(s, 'iam:SimulatePrincipalPolicy', role)));
+  for (const r of ['*', role.replace(/deploy$/, '*'), [role, '*']]) assert.equal(safeSimulation(fixture('iam:SimulatePrincipalPolicy', r)), false);
+  assert.ok(safeSimulation(fixture('iam:SimulatePrincipalPolicy', role)));
 });
