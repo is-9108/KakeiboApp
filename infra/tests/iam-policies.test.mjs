@@ -14,7 +14,7 @@ const allows = (s, action, resource) => s.Effect === 'Allow' && array(s.Action).
 const fixture = (Action, Resource, Condition) => ({ Effect: 'Allow', Action, Resource, ...(Condition ? { Condition } : {}) });
 function safeIam(s) {
   const write = array(s.Action).some(a => matches(a.split(':')[0], 'iam') && !/^iam:(Get|List)[A-Za-z*?]*$/i.test(a));
-  return s.Effect !== 'Allow' || !write || array(s.Resource).every(r => !matches(r, role) && ![...files.map(n => n.replace(/\.json$/, '')), 'kakeibo-github-deploy-zzz'].some(n => matches(r, policyArn.replace(/kakeibo-github-deploy-core$/, n))));
+  return s.Effect !== 'Allow' || !write || array(s.Resource).every(r => !matches(r, role) && !matches(policyArn.replace(/core$/, '*'), r) && ![...files.map(n => n.replace(/\.json$/, '')), 'kakeibo-github-deploy-zzz'].some(n => matches(r, policyArn.replace(/kakeibo-github-deploy-core$/, n))));
 }
 const state = 'arn:aws:s3:::kakeibo-terraform-state-255737342820/kakeibo/terraform.tfstate';
 const protectedObjects = ['arn:aws:s3:::kakeibo-receipts-255737342820-ap-northeast-1/receipts/x.jpg', 'arn:aws:s3:::kakeibo-terraform-state-255737342820/other'];
@@ -24,6 +24,10 @@ forbidden.push(...['s3:PutBucketPolicy', 's3:DeleteBucketPolicy'].map(a => [a, p
 const safeS3 = s => forbidden.every(([a, r]) => !allows(s, a, r));
 const lambdaRoles = ['api', 'monthly', 'monthly-subscriptions', 'receipt-analysis'].map(n => `arn:aws:iam::255737342820:role/kakeibo-${n}-lambda`);
 const schedulerRoles = ['monthly', 'monthly-subscriptions'].map(n => `arn:aws:iam::255737342820:role/kakeibo-${n}-scheduler`);
+function safeSecret(s) {
+  if (s.Effect !== 'Allow' || !array(s.Action).some(a => matches(a, 'secretsmanager:GetSecretValue'))) return true;
+  return array(s.Resource).every(r => !/[*?]/.test(r) && /^arn:[^:]+:secretsmanager:[^:]+:[0-9]{12}:secret:.+$/.test(r));
+}
 function safePass(s) {
   if (s.Effect !== 'Allow' || !array(s.Action).some(a => matches(a, 'iam:PassRole'))) return true;
   const services = array(s.Condition?.StringEquals?.['iam:PassedToService']);
@@ -54,6 +58,9 @@ test('P4: 自身のロールと管理ポリシーの書き込みを許可せず2
   assert.equal(safeIam(fixture('iam:CreatePolicyVersion', 'arn:aws:iam::255737342820:policy/kakeibo-*')), false);
   for (const name of [...files.map(n => n.replace(/\.json$/, '')), 'kakeibo-github-deploy-zzz'])
     assert.equal(safeIam(fixture('iam:CreatePolicyVersion', policyArn.replace(/kakeibo-github-deploy-core$/, name))), false);
+  for (const suffix of ['db', 'd*'])
+    for (const action of ['iam:CreatePolicyVersion', 'iam:CreatePolicy'])
+      assert.equal(safeIam(fixture(action, policyArn.replace(/core$/, suffix))), false, suffix);
   assert.ok(safeIam(fixture('iam:Get*', role)));
   const denies = statements.filter(s => s.Effect === 'Deny');
   const covers = (s, r, actions) => !('Condition' in s) && array(s.Resource).some(p => matches(p, r)) && actions.every(a => array(s.Action).some(p => matches(p, 'iam:' + a)));
@@ -95,4 +102,16 @@ test('P8: PassRole のサービスと6本のロールの対応を維持する', 
     for (const r of roles) assert.ok(statements.some(s => allows(s, 'iam:PassRole', r) && safePass(s) && s.Condition.StringEquals['iam:PassedToService'] === service));
   assert.equal(safePass(fixture('iam:PassRole', lambdaRoles, { StringEquals: { 'iam:PassedToService': ['lambda.amazonaws.com', 'scheduler.amazonaws.com'] } })), false);
   assert.equal(safePass(fixture('IAM:PassRole', lambdaRoles, { StringEquals: { 'iam:PassedToService': 'scheduler.amazonaws.com' } })), false);
+});
+
+test('P9: Secret 読み取りの Allow はワイルドカードのない具体的 ARN に限定する', () => {
+  assert.ok(statements.every(safeSecret));
+  const secret = 'arn:aws:secretsmanager:ap-northeast-1:255737342820:secret:kakeibo/database-mjboif';
+  for (const action of ['secretsmanager:GetSecretValue', 'SECRETSMANAGER:GetSecretValue', 'secretsmanager:Get*', 'secretsmanager:GetSecretValu?', '*']) {
+    assert.ok(safeSecret(fixture(action, secret)));
+    for (const resource of [secret.replace(/mjboif$/, '*'), secret.replace(/mjboif$/, '??????'), '*', 'kakeibo/database-mjboif'])
+      assert.equal(safeSecret(fixture(action, [secret, resource])), false, action + ' ' + resource);
+  }
+  assert.ok(safeSecret({ ...fixture('secretsmanager:GetSecretValue', '*'), Effect: 'Deny' }));
+  assert.ok(safeSecret(fixture('secretsmanager:DescribeSecret', '*')));
 });
