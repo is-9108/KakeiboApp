@@ -1020,7 +1020,7 @@ Secret の値や Lambda 環境設定を読み取れる権限を含むため、�
 
 plan 保存の直後に `terraform show -json` と `node infra/scripts/preflight-iam.mjs` を実行します。変更のタイプ・操作から [マニフェスト](../infra/iam/action-manifest.json) のアクションを選び、ARN と条件コンテキストを指定して実ロールの Policy Simulator で評価します。create を含む場合は taint 再作成に備え delete も要求し、置き換えでは新旧の ARN を検証します。no-op は import 時を除き評価しません。data ソースは apply 時の read だけを評価します。
 
-不足があれば `::error` にアクション名・ARN・Terraform アドレス・操作を表示し、apply と後続の配置を止めます。冒頭の要約はアクション件数・ARN 件数・API 呼び出し回数・所要時間です。未確定 ID は `PREFLIGHT-UNRESOLVED` と「未確定 ID」、条件の渡し漏れは `条件不足` と表示します。既存 ID に固定された CloudFront Distribution / OAC / API の置き換えは、この段階で拒否されます。参照解決は root module 内の1段だけで、モジュール配下の参照は未確定として評価します。
+不足があれば `::error` にアクション名・ARN・Terraform アドレス・操作を表示し、apply と後続の配置を止めます。冒頭の要約はアクション件数・ARN 件数・API 呼び出し回数・所要時間です。未確定 ID は `PREFLIGHT-UNRESOLVED` と「未確定 ID」、条件の渡し漏れは `条件不足` と表示します。既存 ID に固定された CloudFront Distribution / OAC / API の置き換えは、この段階で拒否されます。参照解決は root module 内の1段だけで、モジュール配下の参照は未確定として評価します。1 段参照の解決では文字列補間の式を復元できないため、参照に接頭辞・接尾辞を加える式は対応範囲外です。
 
 未登録タイプはタイプ名・アドレス付きの warning とし、他に問題がなければ成功終了します。権限の評価が不要な no-op（import を除く）は、この警告の対象外です。ただし CI は現行 `infra/*.tf` の全タイプの登録を必須とします。安定運用後（連続5回の成功、偽の拒否・未登録警告なし）に実行時のブロッキングへの昇格を別 Issue で検討します。
 

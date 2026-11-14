@@ -170,6 +170,10 @@ test('T21: 手動モードは全 JSON を custom simulator にだけ渡す', t =
     assert.deepEqual(c.input.PolicyInputList,customPolicies)
   }
 })
+const assertNoIgnoredFailure = scoped => assert.doesNotMatch(scoped,/\|\|\s*(?:true\b|:|exit\s+0\b)/)
+test('C9・T25: || : による失敗の握りつぶしを検査が拒否する', () => {
+  assert.throws(() => assertNoIgnoredFailure('node infra/scripts/preflight-iam.mjs --plan-json plan.json || :\n'), assert.AssertionError)
+})
 test('T25: workflow は保存した plan を apply 前に検証し失敗を伝播する', () => {
   const workflow = readFileSync(path.join(root,'.github/workflows/deploy.yml'),'utf8')
   const start = workflow.indexOf('- name: Terraform の plan を保存する')
@@ -187,7 +191,7 @@ test('T25: workflow は保存した plan を apply 前に検証し失敗を伝�
   const apply = workflow.slice(end,workflow.indexOf('- name:',end + 7))
   for (const scoped of [preflight,apply]) {
     assert.doesNotMatch(scoped,/continue-on-error/)
-    assert.doesNotMatch(scoped,/\|\|\s*(?:true|:|exit\s+0)\b/)
+    assertNoIgnoredFailure(scoped)
     assert.doesNotMatch(scoped,/(?:set\s+\+e|shell:.*\+e)/)
   }
   assert.match(apply,/terraform -chdir=infra apply/)
@@ -313,6 +317,18 @@ test('C1・T10: 新規ロールとバケットの未確定 id を確定名から
   assert.equal(requests.find(r => r.action === 'iam:PutRolePolicy').arn,lambda.role)
   assert.equal(requests.find(r => r.action === 's3:PutBucketNotification').arn,'arn:aws:s3:::kakeibo-receipts-255737342820-ap-northeast-1')
   assert.ok(requests.every(r => !r.arn.includes('PREFLIGHT-UNRESOLVED')))
+})
+test('C10・T10: id 以外の未確定参照属性を確定名で代用しない', async () => {
+  const { deriveRequests } = await import('../scripts/preflight-iam.mjs')
+  const input = newDependenciesPlan()
+  input.resource_changes[0].change.after_unknown.unique_id = true
+  input.resource_changes[1].change.after_unknown.bucket_regional_domain_name = true
+  const resources = input.configuration.root_module.resources
+  resources[0].expressions.role.references = ['aws_iam_role.api.unique_id','aws_iam_role.api']
+  resources[1].expressions.bucket.references = ['aws_s3_bucket.api.bucket_regional_domain_name','aws_s3_bucket.api']
+  const { requests } = deriveRequests(input,manifest(),'255737342820','ap-northeast-1')
+  assert.equal(requests.find(r => r.action === 'iam:PutRolePolicy').arn,'arn:aws:iam::255737342820:role/PREFLIGHT-UNRESOLVED')
+  assert.equal(requests.find(r => r.action === 's3:PutBucketNotification').arn,'arn:aws:s3:::PREFLIGHT-UNRESOLVED')
 })
 test('追加判断: 権限不要の未登録 no-op だけは警告対象外', t => {
   const r = run(t,{input:plan(change('aws_unknown',['no-op']))})

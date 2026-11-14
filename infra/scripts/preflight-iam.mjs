@@ -82,8 +82,8 @@ export function deriveRequests(plan, manifest, account, region) {
             const direct = get(target.change.after, attr)
             if (!unknown(target.change.after_unknown, attr) && direct !== null && direct !== undefined && direct !== '') return direct
             const targetEntry = manifest.resourceTypes[typeKey(target)]
-            // 非 ARN 参照は、利用側の ARN テンプレートに渡す確定名を復元する。
-            if (attr !== 'arn' && targetEntry) {
+            // id 参照は、利用側の ARN テンプレートに渡す確定名を復元する。
+            if (attr === 'id' && targetEntry) {
               const nameKey = target.type === 'aws_iam_role' ? 'name' : target.type === 'aws_s3_bucket' ? 'bucket' : undefined
               const name = nameKey && get(target.change.after, nameKey)
               if (nameKey && !unknown(target.change.after_unknown, nameKey) && name !== null && name !== undefined && name !== '') return name
