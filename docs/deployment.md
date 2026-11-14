@@ -946,9 +946,9 @@ CD の設定（15章）:
 2. CI が成功すると `Deploy` が起動します。同じリポジトリの main への push が起点の CI だけが対象です。
 3. `gate` が CI の `head_sha` と現在の main の先頭を比較します。古いコミットなら通知を出して成功終了し、デプロイをスキップします。
 4. GitHub Environment `production` の承認を待ちます。
-5. 承認後、deploy ジョブの先頭で CI の `head_sha` と現在の main の先頭を再比較します。古ければ通知を出して成功終了し、checkout・AWS 認証を含む後続ステップをすべてスキップします。最新の場合だけ、CI が成功したコミットを checkout し、全14個の Variables と1個の Secret が空でないことを AWS 認証より前に確認します。不足があれば、値は表示せず設定名だけを通知して停止します。マイグレーション SQL の生成（`dotnet ef migrations script`）は restore 済みのプロジェクトを前提にしているため、AWS の認証の前に API の依存パッケージを restore します。その後、マイグレーション → Lambda パッケージ・Terraform plan・同じ plan の apply → フロントのビルド・検査・S3 配置・CloudFront 無効化を、1つのジョブで実行します。
+5. 承認後、deploy ジョブの先頭で CI の `head_sha` と現在の main の先頭を再比較します。古ければ通知を出して成功終了し、checkout・AWS 認証を含む後続ステップをすべてスキップします。最新の場合だけ、CI が成功したコミットを checkout し、全14個の Variables と1個の Secret が空でないことを AWS 認証より前に確認します。不足があれば、値は表示せず設定名だけを通知して停止します。マイグレーション SQL の生成（`dotnet ef migrations script`）は restore 済みのプロジェクトを前提にしているため、AWS の認証の前に API の依存パッケージを restore します。その後、マイグレーション → Lambda パッケージ・Terraform plan・IAM プリフライト・同じ plan の apply → フロントのビルド・検査・S3 配置・CloudFront 無効化を、1つのジョブで実行します。
 
-途中で失敗すると、それ以降の手順は実行されません。自動ロールバックはありません。承認は plan 作成前の1回です。apply 前に plan の差分を見て止める承認段階はありません。state・plan・ZIP・SQL は artifact としてアップロードしません。保存 plan はランナーの一時領域に権限を限定して作成し、apply の終了時に削除します。
+途中で失敗すると、それ以降の手順は実行されません。自動ロールバックはありません。承認は plan 作成前の1回です。apply 前に plan の差分を見て止める承認段階はありません。state・plan・ZIP・SQL は artifact としてアップロードしません。保存 plan はランナーの一時領域に権限を限定して作成し、apply の終了時に削除します。plan の JSON はプリフライトの終了時に削除し、プリフライト失敗時は保存 plan も削除します。
 
 `deploy.yml` は main に入って初めて `workflow_run` が有効になります。PR では実際のデプロイは検証できません。CI は従来どおり、PR では変更箇所のジョブだけ、main への push では全ジョブを実行します。actionlint は常に実行し、`CI 結果` の判定にも含めます。
 
@@ -1011,10 +1011,43 @@ Terraform 実行基盤、S3、Lambda、IAM、CloudFront / API Gateway、SNS / Sc
 3. [Service Authorization Reference](https://docs.aws.amazon.com/service-authorization/latest/reference/reference_policies_actions-resources-contextkeys.html) でアクション名とリソースタイプを確認します。
 4. 作成・読み取り・更新・削除・タグのライフサイクルを確認し、README の担当 JSON に必要な範囲で追記して PR を作ります。
 5. 人間が `apply-policies.sh` で反映し、終了0・差分なしを確認して Deploy を Re-run all jobs します。
-6. CloudFront Distribution / OAC / API を置き換えて ID が変わったら、edge JSON の対象 ARN を新 ID に更新して同様に反映します。Distribution の作成時タグ付けで `cloudfront:TagResource` が拒否された場合も新 ARN を確認します。置き換えは変更なし apply では検証できず、事前検出は #53 に引き継ぎます。
+6. CloudFront Distribution / OAC / API を置き換えて ID が変わったら、edge JSON の対象 ARN を新 ID に更新して同様に反映します。Distribution の作成時タグ付けで `cloudfront:TagResource` が拒否された場合も新 ARN を確認します。置き換え時はプリフライトが未確定 ID の ARN を使って固定 ID への権限制限を検出します。新 ID は作成前に分からないため、表示されたプレースホルダーをそのまま許可せず、置き換えに必要な権限と実施手順を人間が確認してください。
 7. 原因がすぐ分からず復旧を急ぐ場合は README の旧ポリシー復元手順を使います。
 
 Secret の値や Lambda 環境設定を読み取れる権限を含むため、ロールの引受先を広げないでください。state を SSE-KMS にする場合は、KMS 権限を正本 JSON に追加して検証・反映します。
+
+### apply 前の IAM プリフライト
+
+plan 保存の直後に `terraform show -json` と `node infra/scripts/preflight-iam.mjs` を実行します。変更のタイプ・操作から [マニフェスト](../infra/iam/action-manifest.json) のアクションを選び、ARN と条件コンテキストを指定して実ロールの Policy Simulator で評価します。create を含む場合は taint 再作成に備え delete も要求し、置き換えでは新旧の ARN を検証します。no-op は import 時を除き評価しません。data ソースは apply 時の read だけを評価します。
+
+不足があれば `::error` にアクション名・ARN・Terraform アドレス・操作を表示し、apply と後続の配置を止めます。冒頭の要約はアクション件数・ARN 件数・API 呼び出し回数・所要時間です。未確定 ID は `PREFLIGHT-UNRESOLVED` と「未確定 ID」、条件の渡し漏れは `条件不足` と表示します。既存 ID に固定された CloudFront Distribution / OAC / API の置き換えは、この段階で拒否されます。参照解決は root module 内の1段だけで、モジュール配下の参照は未確定として評価します。
+
+未登録タイプはタイプ名・アドレス付きの warning とし、他に問題がなければ成功終了します。ただし CI は現行 `infra/*.tf` の全タイプの登録を必須とします。安定運用後（連続5回の成功、偽の拒否・未登録警告なし）に実行時のブロッキングへの昇格を別 Issue で検討します。
+
+| 終了コード | 意味 |
+|---|---|
+| 0 | 不足なし、または warn モードで警告に格下げ |
+| 1 | 引数・plan JSON・リージョン・aws CLI などの前提エラー |
+| 2 | マニフェストの不正 |
+| 3 | 権限不足（implicitDeny / explicitDeny） |
+| 4 | simulator API 自体の失敗（AccessDenied・再試行切れなど） |
+
+`production` の任意の Variable `IAM_PREFLIGHT_MODE` は未設定または `enforce` が通常動作です。`warn` は終了3・4を warning にして0終了し、apply を続行します。それ以外の値は終了1です。偽の拒否で復旧を急ぐ場合だけ人間が一時的に設定し、原因をマニフェスト・ARN・条件コンテキスト・ロールへの反映状況から調査して、修正後に Variable を削除してください。前提・マニフェストの不正は warn でも停止します。
+
+**マージ前に人間が `apply-policies.sh` で `SimulateDeployRole` を反映し、`--check` が差分なしになることを確認します。** 未反映だと最初の Deploy は終了4で止まります。CLI / API でのシミュレーションに必要なのは [該当するシミュレーションアクションの許可](https://docs.aws.amazon.com/IAM/latest/UserGuide/permissions-required_policy-simulator.html)です。コンテキストキー探索 API は使用しません。
+
+手動検証 M1 は、人間が管理者プロファイルで正本を一時ディレクトリにコピーし、1アクション（例 `lambda:UpdateFunctionCode`）を外して次を実行します。除く前は0、除いた後は3と不足名が出ることを確認します。このモードは渡した JSON だけの評価で、実ロールのアタッチ状態・permissions boundary を反映しません。
+
+```bash
+AWS_REGION=ap-northeast-1 node infra/scripts/preflight-iam.mjs \
+  --plan-json infra/tests/fixtures/preflight/normal.json \
+  --role-arn arn:aws:iam::255737342820:role/kakeibo-github-deploy \
+  --custom-policies-dir /tmp/kakeibo-preflight-policies
+```
+
+fixture のバケット名・オブジェクト key は手元の正本が許可する値に合わせます。通常の実ロール経路では `--custom-policies-dir` を指定しません。マージ後の初回 Deploy（M2）でプリフライト・apply の成功を確認し、通常変更のステップ時間が60秒未満であることと要約行を記録します（M3）。
+
+Policy Simulator は実評価と完全には一致しません。リソースポリシー・SCP・条件などの差により、成功しても apply の成功は保証されません。拒否時は原因を調べて修正します。plan JSON は sensitive 値を平文で含むため、ログ出力・artifact 保存・チャットへの貼付をせず、権限を限定して一時保存し削除します。スクリプトも plan 内容・パース例外の内容を表示しません。
 
 ### GitHub Environment `production`
 

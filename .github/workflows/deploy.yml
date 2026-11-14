@@ -205,6 +205,24 @@ jobs:
           umask 077
           terraform -chdir=infra plan -out="$RUNNER_TEMP/kakeibo.tfplan"
 
+      - name: apply 前にデプロイ権限を検証する
+        if: steps.latest.outputs.is_latest == 'true'
+        env:
+          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          IAM_PREFLIGHT_MODE: ${{ vars.IAM_PREFLIGHT_MODE }}
+        run: |
+          umask 077
+          cleanup() {
+            status=$?
+            rm -f "$RUNNER_TEMP/kakeibo.tfplan.json"
+            if [ "$status" -ne 0 ]; then
+              rm -f "$RUNNER_TEMP/kakeibo.tfplan"
+            fi
+          }
+          trap cleanup EXIT
+          terraform -chdir=infra show -json "$RUNNER_TEMP/kakeibo.tfplan" > "$RUNNER_TEMP/kakeibo.tfplan.json"
+          node infra/scripts/preflight-iam.mjs --plan-json "$RUNNER_TEMP/kakeibo.tfplan.json" --role-arn "$AWS_DEPLOY_ROLE_ARN"
+
       - name: 保存した同じ plan を適用して削除する
         if: steps.latest.outputs.is_latest == 'true'
         run: |

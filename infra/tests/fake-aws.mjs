@@ -6,6 +6,22 @@ const [service, operation] = args
 const option = name => args[args.indexOf(name) + 1]
 const statePath = process.env.FAKE_AWS_STATE
 const state = JSON.parse(readFileSync(statePath, 'utf8'))
+if (service === 'iam' && ['simulate-principal-policy', 'simulate-custom-policy'].includes(operation)) {
+  const started = Date.now()
+  const file = option('--cli-input-json').replace(/^file:\/\//, '')
+  const input = JSON.parse(readFileSync(file, 'utf8'))
+  if (state.delay) await new Promise(resolve => setTimeout(resolve, state.delay))
+  const { statSync } = await import('node:fs')
+  appendFileSync(process.env.FAKE_AWS_LOG, JSON.stringify({ service, operation, args, input, pager: process.env.AWS_PAGER, retryMode: process.env.AWS_RETRY_MODE, maxAttempts: process.env.AWS_MAX_ATTEMPTS, mode: statSync(file).mode, started, ended: Date.now() }) + '\n')
+  if (state.fail === operation) { console.error('模擬 API エラー'); process.exit(254) }
+  const EvaluationResults = input.ActionNames.map(action => {
+    const resource = input.ResourceArns[0]
+    const deny = (state.deny ?? []).find(d => d.action === action && (!d.resource || d.resource === resource))
+    return { EvalActionName: action, EvalResourceName: resource, EvalDecision: deny?.decision ?? (deny || (state.denyUnresolved && resource.includes('PREFLIGHT-UNRESOLVED')) ? 'implicitDeny' : 'allowed'), MissingContextValues: deny?.missing ?? [] }
+  })
+  console.log(JSON.stringify({ EvaluationResults }))
+  process.exit(0)
+}
 appendFileSync(process.env.FAKE_AWS_LOG, JSON.stringify({ service, operation, args, pager: process.env.AWS_PAGER }) + '\n')
 const document = () => JSON.parse(readFileSync(option('--policy-document').replace(/^file:\/\//, ''), 'utf8'))
 const name = args.includes('--policy-arn') ? option('--policy-arn').split('/').at(-1) : option('--policy-name')
