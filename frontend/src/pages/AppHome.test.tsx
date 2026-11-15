@@ -46,6 +46,7 @@ vi.mock('../api/client', async (importOriginal) => {
   return {
     ...actual,
     requestReceiptUploadUrl: vi.fn(),
+    fetchReceiptAnalysis: vi.fn(),
     fetchEntries: vi.fn(),
     fetchSummary: vi.fn(),
     createEntry: vi.fn(),

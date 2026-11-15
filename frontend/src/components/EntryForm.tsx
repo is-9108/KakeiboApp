@@ -12,6 +12,7 @@ import {
 
 export interface EntryFormProps {
   mode: 'create' | 'edit'
+  receiptDraft?: boolean
   /** 編集開始のたびに増える値。同じ対象の再選択でもスクロール・フォーカスをやり直す。 */
   editKey?: number
   values: EntryFormValues
@@ -29,6 +30,7 @@ const FIELD_ORDER: EntryField[] = ['date', 'type', 'amount', 'category']
 /** 登録・編集で共用する収支フォーム。送信前に一括検証する。 */
 export default function EntryForm({
   mode,
+  receiptDraft = false,
   editKey,
   values,
   submitting,
@@ -112,6 +114,7 @@ export default function EntryForm({
         {heading}
       </h2>
       <form className="entry-form__form" aria-label="収支フォーム" noValidate onSubmit={handleSubmit}>
+        {receiptDraft && <p className="entry-form__hint">レシートの解析結果です。内容を確認・修正してから登録してください。</p>}
         <p className="entry-form__hint">保存先は入力した日付の月です。</p>
 
         <div className="entry-form__field">
@@ -245,7 +248,7 @@ export default function EntryForm({
                 ? '保存する'
                 : '登録する'}
           </button>
-          {mode === 'edit' && (
+          {(mode === 'edit' || receiptDraft) && (
             <button type="button" onClick={onCancel} disabled={submitting}>
               キャンセル
             </button>
