@@ -232,7 +232,7 @@ export default function AppHome() {
       }
       if (!mountedRef.current) return
       setEditingEntry(null)
-      if (receiptDraft) {
+      if (receiptDraft || (editing === null && (receipt.phase === 'failed' || receipt.phase === 'timeout'))) {
         setReceiptJobId(null)
         setAppliedReceiptId(null)
         setReceiptDraft(false)
@@ -277,6 +277,7 @@ export default function AppHome() {
 
   const handleCancelEdit = () => {
     if (mutationRef.current) return
+    setEditKey((key) => key + 1)
     setReceiptJobId(null)
     setAppliedReceiptId(null)
     setReceiptDraft(false)
@@ -372,7 +373,7 @@ export default function AppHome() {
       </header>
 
       <ReceiptUpload onSessionExpired={signOut} onUploaded={jobId => {
-        if (editingEntry !== null) return
+        if (editingEntry !== null) return false
         setAppliedReceiptId(null)
         setReceiptDraft(false)
         setReceiptJobId(jobId)

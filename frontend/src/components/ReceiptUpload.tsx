@@ -4,7 +4,7 @@ import { RECEIPT_CONTENT_TYPES, validateReceiptFile } from '../domain/receipts'
 
 interface Props {
   onSessionExpired: () => void | Promise<void>
-  onUploaded: (jobId: string) => void
+  onUploaded: (jobId: string) => void | boolean
   disabled?: boolean
 }
 
@@ -37,8 +37,8 @@ export default function ReceiptUpload({ onSessionExpired, onUploaded, disabled =
       if (typeof target.jobId !== 'string') throw new Error('解析IDがありません。')
       await uploadReceiptToS3(target, file)
       if (mounted.current) {
-        setState('success')
-        uploaded.current(target.jobId)
+        const accepted = uploaded.current(target.jobId)
+        setState(accepted === false ? 'idle' : 'success')
       }
     } catch (cause) {
       if (!mounted.current) return
