@@ -402,3 +402,13 @@ it('サブスクは支出だけで選択でき種別変更で解除される', (
   expect(screen.queryByRole('option', { name: 'サブスク' })).not.toBeInTheDocument()
   expect(screen.getByLabelText('カテゴリ')).toHaveValue('')
 })
+
+it('レシート下書きは新規登録の見出しと補足文・キャンセルを表示する', () => {
+  const cancel = vi.fn()
+  render(<EntryForm mode="create" receiptDraft values={defaultValues} submitting={false} error={null}
+    onChange={vi.fn()} onSubmit={vi.fn()} onCancel={cancel} />)
+  expect(screen.getByRole('heading', { name: '収支の登録' })).toBeInTheDocument()
+  expect(screen.getByText('レシートの解析結果です。内容を確認・修正してから登録してください。')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
+  expect(cancel).toHaveBeenCalledTimes(1)
+})

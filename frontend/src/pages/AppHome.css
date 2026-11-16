@@ -396,3 +396,19 @@
     width: auto;
   }
 }
+
+/* 解析の状態と操作は狭い画面でも縦に並べる。 */
+.app-home__receipt {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid #d2d6dc;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.app-home__receipt [role='alert'] {
+  color: #7f1d1d;
+}

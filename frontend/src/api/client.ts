@@ -221,6 +221,7 @@ export async function deleteSubscription(id: number): Promise<void> {
 }
 
 export interface ReceiptUploadTarget {
+  jobId: string
   uploadUrl: string
   key: string
   expiresAt: string
@@ -247,4 +248,22 @@ export async function uploadReceiptToS3(target: ReceiptUploadTarget, file: File)
     credentials: 'omit',
   })
   if (!response.ok) throw new ApiError('レシートのアップロードに失敗しました。', response.status)
+}
+
+export interface ApiReceiptAnalysis {
+  id: string
+  status: '待機中' | '完了' | '失敗'
+  date: string | null
+  amount: number | null
+  storeName: string | null
+  category: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** ログイン中の利用者の解析結果を取得する。 */
+export async function fetchReceiptAnalysis(id: string): Promise<ApiReceiptAnalysis> {
+  const response = await sendRequest(`/api/receipts/${id}`)
+  await ensureOk(response)
+  return await response.json() as ApiReceiptAnalysis
 }

@@ -23,6 +23,8 @@ import {
   initialEntryDate,
   shiftMonth,
 } from '../domain/month'
+import { receiptAnalysisToFormValues } from '../domain/receipts'
+import { useReceiptAnalysis } from '../hooks/useReceiptAnalysis'
 import ReceiptUpload from '../components/ReceiptUpload'
 import MonthNavigation from '../components/MonthNavigation'
 import MonthlySummary from '../components/MonthlySummary'
@@ -101,6 +103,10 @@ function describeMutationError(error: unknown, kind: MutationKind): MutationErro
  */
 export default function AppHome() {
   const { signOut } = useAuth()
+  const [receiptJobId, setReceiptJobId] = useState<string | null>(null)
+  const receipt = useReceiptAnalysis(receiptJobId, signOut)
+  const receiptPhaseRef = useRef(receipt.phase)
+  useEffect(() => { receiptPhaseRef.current = receipt.phase }, [receipt.phase])
   const [month, setMonth] = useState(() => currentMonthJst())
   const [data, setData] = useState<MonthData | null>(null)
   const [loadState, setLoadState] = useState<LoadState>('loading')
@@ -115,6 +121,19 @@ export default function AppHome() {
   const [deleteErrorCanReload, setDeleteErrorCanReload] = useState(false)
   /** 編集開始のたびに増やす。同じ対象の再選択でもEntryFormのスクロール・フォーカスを再実行させる。 */
   const [editKey, setEditKey] = useState(0)
+  const [receiptDraft, setReceiptDraft] = useState(false)
+  const [appliedReceiptId, setAppliedReceiptId] = useState<string | null>(null)
+
+  // 通信中は反映を保留し、完了結果は一度だけ新規フォームに適用する。
+  if (receipt.phase === 'completed' && receipt.analysis !== null &&
+      receiptJobId !== appliedReceiptId && !busy && editingEntry === null) {
+    setAppliedReceiptId(receiptJobId)
+    setReceiptDraft(true)
+    setFormValues(receiptAnalysisToFormValues(receipt.analysis))
+    setFormError(null)
+    setFormErrorCanReload(false)
+    setEditKey(key => key + 1)
+  }
 
   const mountedRef = useRef(true)
   const generationRef = useRef(0)
@@ -215,6 +234,11 @@ export default function AppHome() {
       }
       if (!mountedRef.current) return
       setEditingEntry(null)
+      if (receiptDraft || (editing === null && (receiptPhaseRef.current === 'failed' || receiptPhaseRef.current === 'timeout'))) {
+        setReceiptJobId(null)
+        setAppliedReceiptId(null)
+        setReceiptDraft(false)
+      }
       setFormValues(blankForm(month))
       setNotice(editing !== null ? '収支を更新しました。' : '収支を登録しました。')
 
@@ -242,6 +266,9 @@ export default function AppHome() {
 
   const handleEdit = (entry: ApiEntry) => {
     if (mutationRef.current) return
+    setReceiptJobId(null)
+    setAppliedReceiptId(null)
+    setReceiptDraft(false)
     setEditingEntry(entry)
     setFormValues(formValuesFromEntry(entry))
     setFormError(null)
@@ -252,6 +279,10 @@ export default function AppHome() {
 
   const handleCancelEdit = () => {
     if (mutationRef.current) return
+    setEditKey((key) => key + 1)
+    setReceiptJobId(null)
+    setAppliedReceiptId(null)
+    setReceiptDraft(false)
     setEditingEntry(null)
     setFormValues(blankForm(month))
     setFormError(null)
@@ -343,7 +374,22 @@ export default function AppHome() {
         </button>
       </header>
 
-      <ReceiptUpload onSessionExpired={signOut} />
+      <ReceiptUpload onSessionExpired={signOut} onUploaded={jobId => {
+        if (editingEntry !== null) return false
+        setAppliedReceiptId(null)
+        setReceiptDraft(false)
+        setReceiptJobId(jobId)
+      }}
+        disabled={busy || editingEntry !== null || receipt.phase === 'polling'} />
+      {receipt.phase === 'polling' && <div className="app-home__receipt">
+        <p role="status">レシートを解析しています…</p>
+        <button type="button" disabled={busy} onClick={handleCancelEdit}>キャンセル</button>
+      </div>}
+
+      {(receipt.phase === 'failed' || receipt.phase === 'timeout') && <div className="app-home__receipt">
+        <p role="alert">{receipt.phase === 'timeout' ? '解析が時間内に完了しませんでした。' : 'レシートの解析に失敗しました。'}</p>
+        <button type="button" disabled={busy} onClick={handleCancelEdit}>手入力に切り替える</button>
+      </div>}
 
       <MonthNavigation
         month={month}
@@ -380,6 +426,7 @@ export default function AppHome() {
             <EntryForm
               mode={editingEntry !== null ? 'edit' : 'create'}
               editKey={editKey}
+              receiptDraft={receiptDraft}
               values={formValues}
               submitting={busy}
               error={formError}

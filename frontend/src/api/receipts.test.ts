@@ -1,5 +1,5 @@
 import { fetchSession } from '../auth/amplifyAuth'
-import { AccessTokenRefreshError, requestReceiptUploadUrl, uploadReceiptToS3 } from './client'
+import { ApiError, fetchReceiptAnalysis, AccessTokenRefreshError, requestReceiptUploadUrl, uploadReceiptToS3 } from './client'
 
 vi.mock('../auth/amplifyAuth', () => ({ fetchSession: vi.fn(), isSessionExpiredError: () => false }))
 const fetchMock = vi.fn()
@@ -9,7 +9,7 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals(); vi.resetAllMocks() })
 const file = new File(['abc'], 'receipt.png', { type: 'image/png' })
-const target = { uploadUrl: 'https://s3.example/upload?signature=abc', key: 'receipts/key.png', expiresAt: '', headers: { 'Content-Type': 'image/png' } }
+const target = { jobId: 'job-1', uploadUrl: 'https://s3.example/upload?signature=abc', key: 'receipts/key.png', expiresAt: '', headers: { 'Content-Type': 'image/png' } }
 
 it('認証付きで署名を要求する', async () => {
   fetchMock.mockResolvedValue(new Response(JSON.stringify(target)))
@@ -37,4 +37,20 @@ it.each([403, 500])('S3の%sを失敗として扱う', async status => {
 it('通信失敗を呼び出し元へ返す', async () => {
   fetchMock.mockRejectedValue(new TypeError('network'))
   await expect(uploadReceiptToS3(target, file)).rejects.toThrow()
+})
+
+it('解析結果を認証付きのURLから取得する', async () => {
+  const result = { id: 'job-1', status: '完了', amount: 100 }
+  fetchMock.mockResolvedValue(new Response(JSON.stringify(result)))
+  expect(await fetchReceiptAnalysis('job-1')).toEqual(result)
+  expect(fetchMock).toHaveBeenCalledWith('/api/receipts/job-1', { headers: { Authorization: 'Bearer token' } })
+})
+it.each([404, 500, 503])('解析結果の%sをAPIエラーとして返す', async status => {
+  fetchMock.mockResolvedValue(new Response(null, { status }))
+  await expect(fetchReceiptAnalysis('job-1')).rejects.toMatchObject({ status })
+  await expect(fetchReceiptAnalysis('job-1')).rejects.toBeInstanceOf(ApiError)
+})
+it('解析結果の401をセッション失効として返す', async () => {
+  fetchMock.mockResolvedValue(new Response(null, { status: 401 }))
+  await expect(fetchReceiptAnalysis('job-1')).rejects.toBeInstanceOf(AccessTokenRefreshError)
 })

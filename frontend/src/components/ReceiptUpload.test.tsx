@@ -6,7 +6,7 @@ vi.mock('../api/client', async importOriginal => ({
   ...await importOriginal<typeof import('../api/client')>(),
   requestReceiptUploadUrl: vi.fn(), uploadReceiptToS3: vi.fn(),
 }))
-const target = { uploadUrl: 'https://s3.example', key: 'receipts/key', expiresAt: '', headers: { 'Content-Type': 'image/png' } }
+const target = { jobId: 'job-1', uploadUrl: 'https://s3.example', key: 'receipts/key', expiresAt: '', headers: { 'Content-Type': 'image/png' } }
 beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(requestReceiptUploadUrl).mockResolvedValue(target)
@@ -18,7 +18,7 @@ function select(type = 'image/png', size = 1) {
   fireEvent.change(screen.getByLabelText('レシート画像'), { target: { files: [file] } })
 }
 it('ボタンからカメラ対応のファイル選択を開く', () => {
-  render(<ReceiptUpload onSessionExpired={vi.fn()} />)
+  render(<ReceiptUpload onSessionExpired={vi.fn()} onUploaded={vi.fn()} />)
   const input = screen.getByLabelText('レシート画像')
   const click = vi.spyOn(input, 'click')
   fireEvent.click(screen.getByRole('button', { name: 'レシートから登録' }))
@@ -27,7 +27,7 @@ it('ボタンからカメラ対応のファイル選択を開く', () => {
   expect(input).toHaveAttribute('capture', 'environment')
 })
 it.each([['image/gif', 1], ['image/png', 0], ['image/png', 10485761]])('不正ファイルを送信前に拒否する %s %s', (type, size) => {
-  render(<ReceiptUpload onSessionExpired={vi.fn()} />)
+  render(<ReceiptUpload onSessionExpired={vi.fn()} onUploaded={vi.fn()} />)
   select(type as string, size as number)
   expect(screen.getByRole('alert')).toBeInTheDocument()
   expect(requestReceiptUploadUrl).not.toHaveBeenCalled()
@@ -36,7 +36,7 @@ it.each([['image/gif', 1], ['image/png', 0], ['image/png', 10485761]])('不正�
 it('送信中の二重送信を防ぎ、完了を表示する', async () => {
   let resolve!: () => void
   vi.mocked(uploadReceiptToS3).mockReturnValue(new Promise<void>(done => { resolve = done }))
-  render(<ReceiptUpload onSessionExpired={vi.fn()} />)
+  render(<ReceiptUpload onSessionExpired={vi.fn()} onUploaded={vi.fn()} />)
   select()
   await waitFor(() => expect(uploadReceiptToS3).toHaveBeenCalledOnce())
   expect(screen.getByRole('status')).toHaveTextContent('アップロード中…')
@@ -49,7 +49,7 @@ it('送信中の二重送信を防ぎ、完了を表示する', async () => {
 it.each(['署名', 'PUT'])('%s失敗後に再選択できる', async stage => {
   if (stage === '署名') vi.mocked(requestReceiptUploadUrl).mockRejectedValueOnce(new Error())
   else vi.mocked(uploadReceiptToS3).mockRejectedValueOnce(new Error())
-  render(<ReceiptUpload onSessionExpired={vi.fn()} />)
+  render(<ReceiptUpload onSessionExpired={vi.fn()} onUploaded={vi.fn()} />)
   select()
   expect(await screen.findByRole('alert')).toHaveTextContent('アップロードに失敗しました。')
   select()
@@ -58,16 +58,49 @@ it.each(['署名', 'PUT'])('%s失敗後に再選択できる', async stage => {
 it('セッション失効を親へ伝える', async () => {
   const expired = vi.fn()
   vi.mocked(requestReceiptUploadUrl).mockRejectedValue(new AccessTokenRefreshError())
-  render(<ReceiptUpload onSessionExpired={expired} />)
+  render(<ReceiptUpload onSessionExpired={expired} onUploaded={vi.fn()} />)
   select()
   await waitFor(() => expect(expired).toHaveBeenCalledOnce())
 })
 it('アンマウント後にPUTを開始しない', async () => {
   let resolve!: (value: typeof target) => void
   vi.mocked(requestReceiptUploadUrl).mockReturnValue(new Promise(done => { resolve = done }))
-  const view = render(<ReceiptUpload onSessionExpired={vi.fn()} />)
+  const view = render(<ReceiptUpload onSessionExpired={vi.fn()} onUploaded={vi.fn()} />)
   select()
   view.unmount()
   await act(async () => resolve(target))
   expect(uploadReceiptToS3).not.toHaveBeenCalled()
+})
+it('PUT成功後にjobIdを親へ一度だけ通知する', async () => {
+  const uploaded = vi.fn()
+  render(<ReceiptUpload onSessionExpired={vi.fn()} onUploaded={uploaded} />)
+  select()
+  await waitFor(() => expect(uploaded).toHaveBeenCalledTimes(1))
+  expect(uploaded).toHaveBeenCalledWith('job-1')
+})
+it('無効時はボタンと画像選択を止める', () => {
+  render(<ReceiptUpload onSessionExpired={vi.fn()} onUploaded={vi.fn()} disabled />)
+  expect(screen.getByRole('button')).toBeDisabled()
+  expect(screen.getByLabelText('レシート画像')).toBeDisabled()
+  select()
+  expect(requestReceiptUploadUrl).not.toHaveBeenCalled()
+})
+it('jobId欠落時はアップロード失敗として通知しない', async () => {
+  const uploaded = vi.fn()
+  vi.mocked(requestReceiptUploadUrl).mockResolvedValue({ ...target, jobId: undefined } as unknown as typeof target)
+  render(<ReceiptUpload onSessionExpired={vi.fn()} onUploaded={uploaded} />)
+  select()
+  expect(await screen.findByRole('alert')).toHaveTextContent('アップロードに失敗しました。')
+  expect(uploaded).not.toHaveBeenCalled()
+})
+it('PUT完了前にアンマウントしたら親へ通知しない', async () => {
+  const uploaded = vi.fn()
+  let resolve!: () => void
+  vi.mocked(uploadReceiptToS3).mockReturnValue(new Promise(done => { resolve = done }))
+  const view = render(<ReceiptUpload onSessionExpired={vi.fn()} onUploaded={uploaded} />)
+  select()
+  await waitFor(() => expect(uploadReceiptToS3).toHaveBeenCalledOnce())
+  view.unmount()
+  await act(async () => resolve())
+  expect(uploaded).not.toHaveBeenCalled()
 })
