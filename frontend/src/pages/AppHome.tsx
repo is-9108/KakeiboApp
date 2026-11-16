@@ -105,6 +105,8 @@ export default function AppHome() {
   const { signOut } = useAuth()
   const [receiptJobId, setReceiptJobId] = useState<string | null>(null)
   const receipt = useReceiptAnalysis(receiptJobId, signOut)
+  const receiptPhaseRef = useRef(receipt.phase)
+  useEffect(() => { receiptPhaseRef.current = receipt.phase }, [receipt.phase])
   const [month, setMonth] = useState(() => currentMonthJst())
   const [data, setData] = useState<MonthData | null>(null)
   const [loadState, setLoadState] = useState<LoadState>('loading')
@@ -232,7 +234,7 @@ export default function AppHome() {
       }
       if (!mountedRef.current) return
       setEditingEntry(null)
-      if (receiptDraft || (editing === null && (receipt.phase === 'failed' || receipt.phase === 'timeout'))) {
+      if (receiptDraft || (editing === null && (receiptPhaseRef.current === 'failed' || receiptPhaseRef.current === 'timeout'))) {
         setReceiptJobId(null)
         setAppliedReceiptId(null)
         setReceiptDraft(false)
