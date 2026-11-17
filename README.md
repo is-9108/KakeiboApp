@@ -44,7 +44,8 @@ flowchart LR
     end
     subgraph asyncGroup["非同期処理"]
         scheduler["Amazon EventBridge Scheduler"]
-        monthly["AWS Lambda（サブスク自動登録・月次通知）"]
+        subscription["AWS Lambda（サブスク自動登録）"]
+        notification["AWS Lambda（月次通知）"]
         sns["Amazon SNS（メール通知）"]
         receipts["Amazon S3（レシート用・非公開）"]
         analysis["AWS Lambda（レシート解析）"]
@@ -67,9 +68,11 @@ flowchart LR
     receipts -->|"ObjectCreated 通知で直接起動"| analysis
     analysis --> bedrock
     analysis -->|"解析ジョブ保存"| neon
-    scheduler -->|"毎月 1 日・JST"| monthly
-    monthly --> neon
-    monthly --> sns
+    scheduler -->|"自動登録用スケジュール・毎月 1 日 0:05 JST"| subscription
+    scheduler -->|"通知用スケジュール・毎月 1 日 0:10 JST"| notification
+    subscription --> neon
+    notification --> neon
+    notification --> sns
     actions -.->|"Deploy・Terraform apply"| api
     actions -.->|"Deploy・成果物配置"| site
     actions -.->|"Deploy・キャッシュ無効化"| cf
@@ -117,7 +120,7 @@ flowchart LR
 
 GitHub Actions の [CI](.github/workflows/ci.yml) は、PR の変更パスに応じてフロントエンド・API・インフラの検証と actionlint を実行し、`ci-result` で結果を集約します。main への push では全ジョブを実行します。README のみの変更ではフロントエンド・API・インフラの検証は対象外となるため、文書の内容は別途確認します。
 
-[Deploy](.github/workflows/deploy.yml) は CI 成功後に起動します。最新コミットの確認と `production` Environment の人間承認を経て、マイグレーション、Lambda のパッケージ作成、Terraform plan の保存、IAM プリフライト、保存した plan の apply を行います。その後、フロントをビルド・検査し、S3 へアセットを先に、`index.html` を最後に配置して CloudFront のキャッシュを無効化します。
+[Deploy](.github/workflows/deploy.yml) は、main への push で CI が成功した場合だけ本番デプロイへ進みます。最新コミットの確認と `production` Environment の人間承認を経て、マイグレーション、Lambda のパッケージ作成、Terraform plan の保存、IAM プリフライト、保存した plan の apply を行います。その後、フロントをビルド・検査し、S3 へアセットを先に、`index.html` を最後に配置して CloudFront のキャッシュを無効化します。
 
 自動ロールバックはありません。詳細な運用手順は [デプロイ手順](docs/deployment.md) にまとめています。
 
