@@ -29,55 +29,9 @@
 
 ## アーキテクチャ図
 
-```mermaid
-flowchart LR
-    subgraph client["利用者側"]
-        browser["ブラウザ"]
-    end
-    subgraph delivery["配信"]
-        cf["Amazon CloudFront"]
-        site["Amazon S3（サイト用・非公開）"]
-    end
-    subgraph apiGroup["API"]
-        gateway["Amazon API Gateway HTTP API"]
-        api["AWS Lambda（API）"]
-    end
-    subgraph asyncGroup["非同期処理"]
-        scheduler["Amazon EventBridge Scheduler"]
-        subscription["AWS Lambda（サブスク自動登録）"]
-        notification["AWS Lambda（月次通知）"]
-        sns["Amazon SNS（メール通知）"]
-        receipts["Amazon S3（レシート用・非公開）"]
-        analysis["AWS Lambda（レシート解析）"]
-        bedrock["Amazon Bedrock"]
-    end
-    subgraph external["データベース・認証"]
-        neon["Neon（PostgreSQL）"]
-        cognito["Amazon Cognito"]
-    end
-    subgraph cicd["CI/CD"]
-        actions["GitHub Actions"]
-    end
-    browser --> cf
-    cf -->|"静的ファイル・OAC"| site
-    cf -->|"/api・/api/*・/health"| gateway
-    gateway --> api
-    api -->|"TLS"| neon
-    browser -->|"Amplify・SRP 認証"| cognito
-    browser -->|"署名付き URL で PUT"| receipts
-    receipts -->|"ObjectCreated 通知で直接起動"| analysis
-    analysis --> bedrock
-    analysis -->|"解析ジョブ保存"| neon
-    scheduler -->|"自動登録用スケジュール・毎月 1 日 0:05 JST"| subscription
-    scheduler -->|"通知用スケジュール・毎月 1 日 0:10 JST"| notification
-    subscription --> neon
-    notification --> neon
-    notification --> sns
-    actions -.->|"Deploy・Terraform apply"| api
-    actions -.->|"Deploy・成果物配置"| site
-    actions -.->|"Deploy・キャッシュ無効化"| cf
-    actions -.->|"Deploy・マイグレーション"| neon
-```
+![アーキテクチャ図](docs/images/architecture.png)
+
+この図は aws-architecture-diagram スキルで生成元データ（docs/images/architecture.py）から生成したものです。編集用の draw.io ファイル（docs/images/architecture.drawio）も同じデータから生成しています。
 
 ブラウザは CloudFront 経由で静的ファイルと API にアクセスします。静的ファイルには CloudFront Function による SPA フォールバックを使います。認証はブラウザから Cognito に直接行い、API Lambda がアクセストークンを検証します。
 
