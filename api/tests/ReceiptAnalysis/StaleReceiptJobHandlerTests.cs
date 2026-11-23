@@ -99,6 +99,36 @@ public class StaleReceiptJobHandlerTests(KakeiboApiTestFactory factory) : IClass
     }
 
     [Fact]
+    public async Task 検出後に完了した行の状態と更新日時を保持する()
+    {
+        await ResetJobsAsync();
+        var completed = await SeedAsync(Now.AddMinutes(-45));
+        var pending = await SeedAsync(Now.AddMinutes(-40));
+        var completedAt = Now.AddSeconds(-1);
+        var logger = new Logger(() =>
+        {
+            using var completionDb = CreateDb();
+            var job = completionDb.ReceiptAnalysisJobs.Single(x => x.Id == completed.Id);
+            job.Status = ReceiptAnalysisStatuses.Completed;
+            job.UpdatedAt = completedAt;
+            completionDb.SaveChanges();
+        });
+
+        await Handler(logger).HandleAsync();
+
+        await using var db = CreateDb();
+        var actual = await db.ReceiptAnalysisJobs.SingleAsync(x => x.Id == completed.Id);
+        Assert.Equal(ReceiptAnalysisStatuses.Completed, actual.Status);
+        Assert.Equal(completedAt, actual.UpdatedAt);
+        Assert.Equal(ReceiptAnalysisStatuses.Failed,
+            (await db.ReceiptAnalysisJobs.SingleAsync(x => x.Id == pending.Id)).Status);
+
+        var result = Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Information);
+        Assert.Equal(2, result.Properties["DetectedCount"]);
+        Assert.Equal(1, result.Properties["UpdatedCount"]);
+    }
+
+    [Fact]
     public async Task 閾値を変更すると判定境界が変わる()
     {
         await ResetJobsAsync();
@@ -148,14 +178,24 @@ public class StaleReceiptJobHandlerTests(KakeiboApiTestFactory factory) : IClass
         public override DateTimeOffset GetUtcNow() => Now;
     }
 
-    private sealed class Logger : ILogger<StaleReceiptJobHandler>
+    private sealed class Logger(Action? onFirstWarning = null) : ILogger<StaleReceiptJobHandler>
     {
+        private Action? _onFirstWarning = onFirstWarning;
+
         public List<(LogLevel Level, string Text, Dictionary<string, object?> Properties)> Entries { get; } = [];
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel level) => true;
 
-        public void Log<TState>(LogLevel level, EventId id, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+        public void Log<TState>(LogLevel level, EventId id, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
             Entries.Add((level, formatter(state, exception),
                 ((IEnumerable<KeyValuePair<string, object?>>)(object)state!).ToDictionary(x => x.Key, x => x.Value)));
+
+            if (level == LogLevel.Warning && _onFirstWarning is { } callback)
+            {
+                _onFirstWarning = null;
+                callback();
+            }
+        }
     }
 }
