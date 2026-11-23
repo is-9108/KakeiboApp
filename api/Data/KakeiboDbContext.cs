@@ -18,8 +18,20 @@ public class KakeiboDbContext(DbContextOptions<KakeiboDbContext> options) : DbCo
     /// <summary>レシート解析ジョブ。</summary>
     public DbSet<ReceiptAnalysisJob> ReceiptAnalysisJobs => Set<ReceiptAnalysisJob>();
 
+    /// <summary>月次通知の送信台帳。</summary>
+    public DbSet<MonthlyNotificationDelivery> MonthlyNotificationDeliveries => Set<MonthlyNotificationDelivery>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<MonthlyNotificationDelivery>(entity =>
+        {
+            entity.ToTable("monthly_notification_deliveries");
+            entity.HasKey(d => d.TargetMonth);
+            entity.Property(d => d.TargetMonth).HasColumnName("target_month").HasColumnType("date");
+            entity.Property(d => d.ClaimedAt).HasColumnName("claimed_at");
+            entity.Property(d => d.AcceptedAt).HasColumnName("accepted_at");
+        });
+
         modelBuilder.Entity<ReceiptAnalysisJob>(entity =>
         {
             entity.ToTable("receipt_analysis_jobs");

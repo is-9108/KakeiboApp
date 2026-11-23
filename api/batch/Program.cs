@@ -93,19 +93,16 @@ public static class BatchProgram
         {
             try
             {
-                // APIのProgramや起動時マイグレーションを呼ばず、リクエストごとに読取用Contextだけ作る。
+                // APIのProgramや起動時マイグレーションは呼ばない。
                 using var sns = new AmazonSimpleNotificationServiceClient(new AmazonSimpleNotificationServiceConfig { MaxErrorRetry = 0 });
                 var sender = new SnsMonthlyNotificationSender(sns,
                     Environment.GetEnvironmentVariable("MonthlyNotification__TopicArn")
                     ?? throw new InvalidOperationException("通知設定がありません。"));
-                async Task<Kakeibo.Api.Endpoints.MonthlySummaryResponse> GetSummary(string month, CancellationToken cancellationToken)
-                {
-                    var options = new DbContextOptionsBuilder<KakeiboDbContext>()
-                        .UseNpgsql(Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")).Options;
-                    await using var db = new KakeiboDbContext(options);
-                    return await new MonthlySummaryService(db).GetAsync(month, cancellationToken);
-                }
-                await new MonthlyNotificationHandler(GetSummary, sender, logger).HandleAsync(request);
+                var options = new DbContextOptionsBuilder<KakeiboDbContext>()
+                    .UseNpgsql(Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")).Options;
+                await using var db = new KakeiboDbContext(options);
+                var store = new MonthlyNotificationDeliveryStore(db, TimeProvider.System);
+                await new MonthlyNotificationHandler(new MonthlySummaryService(db).GetAsync, sender, store, logger).HandleAsync(request);
             }
             catch (Exception exception)
             {
