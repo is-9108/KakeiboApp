@@ -9,7 +9,7 @@
 | `kakeibo-github-deploy-core.json` | 管理 | state の対象キー・ロック、DB Secret 完全一致、Lambda ログ参照、リソース制限非対応アクション | 1172 | 19.1% |
 | `kakeibo-github-deploy-edge.json` | 管理 | 既存 Distribution / OAC / API ID、function/kakeibo-* | 1521 | 24.8% |
 | `kakeibo-github-deploy-events.json` | 管理 | kakeibo-* SNS、schedule-group/kakeibo-*、schedule/kakeibo-*/* | 869 | 14.1% |
-| `kakeibo-github-deploy-iam.json` | 管理 | 実行ロール、サービス別 PassRole、自ロールのシミュレーション、自己昇格防止 Deny | 2276 | 37.0% |
+| `kakeibo-github-deploy-iam.json` | 管理 | 実行ロール、サービス別 PassRole、自ロールのシミュレーション、自己昇格防止 Deny | 2403 | 39.1% |
 | `kakeibo-github-deploy-lambda.json` | 管理 | function:kakeibo-*、/aws/lambda/kakeibo-* ロググループ | 979 | 15.9% |
 | `kakeibo-github-deploy-s3.json` | 管理 | site / artifacts / receipts バケット、site / artifacts オブジェクト | 1313 | 21.4% |
 

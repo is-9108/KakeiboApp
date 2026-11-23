@@ -6,6 +6,7 @@ public class MonthlyBatchJobResolverTests
 {
     [Theory]
     [InlineData("receipt-analysis", MonthlyBatchJob.ReceiptAnalysis)]
+    [InlineData("receipt-stale", MonthlyBatchJob.ReceiptStale)]
     [InlineData("subscription", MonthlyBatchJob.Subscription)]
     [InlineData(null, MonthlyBatchJob.Notification)]
     [InlineData("notification", MonthlyBatchJob.Notification)]
@@ -18,6 +19,9 @@ public class MonthlyBatchJobResolverTests
     [InlineData("Receipt-Analysis")]
     [InlineData(" receipt-analysis")]
     [InlineData("receipt-analysis ")]
+    [InlineData("Receipt-Stale")]
+    [InlineData(" receipt-stale")]
+    [InlineData("receipt-stale ")]
     [InlineData("subscriptions")]
     [InlineData("Subscription")]
     [InlineData("")]

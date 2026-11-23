@@ -22,8 +22,8 @@ const forbidden = protectedObjects.flatMap(r => ['GetObject', 'GetObjectVersion'
 forbidden.push(...['s3:PutBucketPolicy', 's3:DeleteBucket'].map(a => [a, state.split('/kakeibo/')[0]]), ['s3:DeleteObject', state]);
 forbidden.push(...['s3:PutBucketPolicy', 's3:DeleteBucketPolicy'].map(a => [a, protectedObjects[0].split('/receipts/')[0]]), ['secretsmanager:GetSecretValue', 'arn:aws:secretsmanager:ap-northeast-1:255737342820:secret:kakeibo/other-xxxxxx']);
 const safeS3 = s => forbidden.every(([a, r]) => !allows(s, a, r));
-const lambdaRoles = ['api', 'monthly', 'monthly-subscriptions', 'receipt-analysis'].map(n => `arn:aws:iam::255737342820:role/kakeibo-${n}-lambda`);
-const schedulerRoles = ['monthly', 'monthly-subscriptions'].map(n => `arn:aws:iam::255737342820:role/kakeibo-${n}-scheduler`);
+const lambdaRoles = ['api', 'monthly', 'monthly-subscriptions', 'receipt-analysis', 'receipt-stale'].map(n => `arn:aws:iam::255737342820:role/kakeibo-${n}-lambda`);
+const schedulerRoles = ['monthly', 'monthly-subscriptions', 'receipt-stale'].map(n => `arn:aws:iam::255737342820:role/kakeibo-${n}-scheduler`);
 function safeSecret(s) {
   if (s.Effect !== 'Allow' || !array(s.Action).some(a => matches(a, 'secretsmanager:GetSecretValue'))) return true;
   return array(s.Resource).every(r => !/[*?]/.test(r) && /^arn:[^:]+:secretsmanager:[^:]+:[0-9]{12}:secret:.+$/.test(r));
@@ -96,7 +96,7 @@ test('P7: README の構成表に全ファイルがある', () => {
   const readme = readFileSync(new URL('../iam/README.md', import.meta.url), 'utf8');
   for (const n of files) assert.ok(readme.split('\n').some(l => l.startsWith('|') && l.includes(n)), n);
 });
-test('P8: PassRole のサービスと6本のロールの対応を維持する', () => {
+test('P8: PassRole のサービスと8本のロールの対応を維持する', () => {
   assert.ok(statements.every(safePass));
   for (const [roles, service] of [[lambdaRoles, 'lambda.amazonaws.com'], [schedulerRoles, 'scheduler.amazonaws.com']])
     for (const r of roles) assert.ok(statements.some(s => allows(s, 'iam:PassRole', r) && safePass(s) && s.Condition.StringEquals['iam:PassedToService'] === service));

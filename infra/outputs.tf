@@ -59,3 +59,8 @@ output "receipt_analysis_function_name" {
   description = "レシート解析Lambdaの関数名。"
   value       = aws_lambda_function.receipt_analysis.function_name
 }
+
+output "receipt_stale_function_name" {
+  description = "レシート解析ジョブ棚卸しLambdaの関数名。"
+  value       = aws_lambda_function.receipt_stale.function_name
+}

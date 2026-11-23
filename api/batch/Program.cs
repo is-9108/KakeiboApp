@@ -61,6 +61,42 @@ public static class BatchProgram
             await LambdaBootstrapBuilder.Create<ReceiptAnalysisEvent>(InvokeAnalysis, new DefaultLambdaJsonSerializer()).Build().RunAsync();
             return;
         }
+        if (job == MonthlyBatchJob.ReceiptStale)
+        {
+            var staleLogger = loggerFactory.CreateLogger<StaleReceiptJobHandler>();
+            async Task InvokeStale(MonthlyNotificationRequest request, ILambdaContext context)
+            {
+                try
+                {
+                    var threshold = StaleReceiptJobHandler.DefaultThreshold;
+                    var configuredMinutes = Environment.GetEnvironmentVariable("ReceiptStale__ThresholdMinutes");
+                    if (configuredMinutes is not null)
+                    {
+                        if (!int.TryParse(configuredMinutes, out var minutes) || minutes < 1)
+                        {
+                            throw new InvalidOperationException("棚卸しの閾値は1分以上の整数で設定してください。");
+                        }
+                        threshold = TimeSpan.FromMinutes(minutes);
+                    }
+
+                    Task<KakeiboDbContext> CreateDb(CancellationToken cancellationToken)
+                    {
+                        var options = new DbContextOptionsBuilder<KakeiboDbContext>()
+                            .UseNpgsql(Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")).Options;
+                        return Task.FromResult(new KakeiboDbContext(options));
+                    }
+                    await new StaleReceiptJobHandler(CreateDb, TimeProvider.System, threshold, staleLogger).HandleAsync();
+                }
+                catch (Exception exception)
+                {
+                    staleLogger.LogError("解析ジョブ棚卸し起動失敗 工程={Stage} 例外種別={ExceptionType}",
+                        "起動またはDB更新", exception.GetType().Name);
+                    throw new InvalidOperationException("解析ジョブの棚卸しに失敗しました。工程ログを確認してください。");
+                }
+            }
+            await LambdaBootstrapBuilder.Create<MonthlyNotificationRequest>(InvokeStale, new DefaultLambdaJsonSerializer()).Build().RunAsync();
+            return;
+        }
         if (job == MonthlyBatchJob.Subscription)
         {
             var registrationLogger = loggerFactory.CreateLogger<SubscriptionRegistrationHandler>();
