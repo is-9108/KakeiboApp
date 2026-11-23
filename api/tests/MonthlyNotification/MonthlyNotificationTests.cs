@@ -2,6 +2,7 @@ using System.Globalization;
 using Amazon.SimpleNotificationService;
 using Amazon.SimpleNotificationService.Model;
 using Kakeibo.Api.Endpoints;
+using Kakeibo.Api.Models;
 using Kakeibo.MonthlyBatch;
 using Microsoft.Extensions.Logging;
 
@@ -21,11 +22,11 @@ public class MonthlyNotificationTests
         {
             months.Add(month);
             return Task.FromResult(new MonthlySummaryResponse(month, 0, 0, 0, []));
-        }, sender, new RecordingLogger());
+        }, sender, new RecordingStore(), new RecordingLogger());
         await handler.HandleAsync(new(time));
         await handler.HandleAsync(new(time));
-        Assert.Equal(new[] { expected, expected }, months);
-        Assert.Equal(2, sender.Messages.Count);
+        Assert.Equal(expected, Assert.Single(months));
+        Assert.Single(sender.Messages);
     }
 
     [Theory]
@@ -38,10 +39,13 @@ public class MonthlyNotificationTests
     {
         var sender = new RecordingSender();
         var logger = new RecordingLogger();
-        var handler = new MonthlyNotificationHandler((_, _) => throw new Exception("取得してはいけない"), sender, logger);
+        var store = new RecordingStore();
+        var handler = new MonthlyNotificationHandler((_, _) => throw new Exception("取得してはいけない"), sender, store, logger);
         await Assert.ThrowsAsync<ArgumentException>(() => handler.HandleAsync(new(time)));
         Assert.Empty(sender.Messages);
         Assert.Contains(logger.Messages, m => m.Contains("入力"));
+        Assert.Equal(0, store.Reads);
+        Assert.Empty(store.Deliveries);
     }
 
     [Fact]
@@ -70,7 +74,7 @@ public class MonthlyNotificationTests
     {
         var sender = new RecordingSender();
         var handler = new MonthlyNotificationHandler((month, _) => Task.FromResult(new MonthlySummaryResponse(
-            month, income, expense, income - expense, expense == 0 ? [] : [new("食費", expense, 100m)])), sender, new RecordingLogger());
+            month, income, expense, income - expense, expense == 0 ? [] : [new("食費", expense, 100m)])), sender, new RecordingStore(), new RecordingLogger());
         await handler.HandleAsync(new("2031-02-01T00:10:00+09:00"));
         var message = Assert.Single(sender.Messages);
         Assert.Contains($"収入合計: {income} 円", message.Body);
@@ -90,7 +94,7 @@ public class MonthlyNotificationTests
         var logger = new RecordingLogger();
         var handler = new MonthlyNotificationHandler((month, _) => publishFailure
             ? Task.FromResult(new MonthlySummaryResponse(month, 0, 0, 0, []))
-            : throw failure, sender, logger);
+            : throw failure, sender, new RecordingStore(), logger);
         Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(new("2031-02-01T00:10:00+09:00"))));
         Assert.Equal(publishFailure ? 1 : 0, sender.Messages.Count);
         Assert.Contains(logger.Messages, m => m.Contains(stage) && m.Contains(nameof(InvalidOperationException)));
@@ -109,13 +113,35 @@ public class MonthlyNotificationTests
         Assert.Equal(message.Body, request.Message);
     }
 
-    private sealed class RecordingSns() : AmazonSimpleNotificationServiceClient(new Amazon.Runtime.AnonymousAWSCredentials(), Amazon.RegionEndpoint.APNortheast1)
+    internal sealed class RecordingSns() : AmazonSimpleNotificationServiceClient(new Amazon.Runtime.AnonymousAWSCredentials(), Amazon.RegionEndpoint.APNortheast1)
     {
         public List<PublishRequest> Requests { get; } = [];
+        public Func<Task<PublishResponse>>? Respond { get; init; }
         public override Task<PublishResponse> PublishAsync(PublishRequest request, CancellationToken cancellationToken = default)
         {
             Requests.Add(request);
-            return Task.FromResult(new PublishResponse());
+            return Respond?.Invoke() ?? Task.FromResult(new PublishResponse());
+        }
+    }
+
+    private sealed class RecordingStore : IMonthlyNotificationDeliveryStore
+    {
+        public Dictionary<DateOnly, MonthlyNotificationDelivery> Deliveries { get; } = [];
+        public int Reads { get; private set; }
+
+        public Task<MonthlyNotificationDelivery?> FindAsync(DateOnly targetMonth, CancellationToken cancellationToken)
+        {
+            Reads++;
+            return Task.FromResult(Deliveries.GetValueOrDefault(targetMonth));
+        }
+
+        public Task<bool> TryClaimAsync(DateOnly targetMonth, CancellationToken cancellationToken)
+            => Task.FromResult(Deliveries.TryAdd(targetMonth, new() { TargetMonth = targetMonth }));
+
+        public Task MarkAcceptedAsync(DateOnly targetMonth, CancellationToken cancellationToken)
+        {
+            Deliveries[targetMonth].AcceptedAt = DateTimeOffset.UnixEpoch;
+            return Task.CompletedTask;
         }
     }
 
@@ -137,7 +163,7 @@ public class MonthlyNotificationTests
         public bool IsEnabled(LogLevel logLevel) => true;
         public void Log<TState>(LogLevel level, EventId id, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
-            Assert.Equal(LogLevel.Error, level);
+            Assert.True(level is LogLevel.Error or LogLevel.Information);
             Assert.Null(exception);
             Messages.Add(formatter(state, exception));
         }

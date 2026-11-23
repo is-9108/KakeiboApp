@@ -62,6 +62,25 @@ namespace Kakeibo.Api.Migrations
                     b.ToTable("entries", (string)null);
                 });
 
+            modelBuilder.Entity("Kakeibo.Api.Models.MonthlyNotificationDelivery", b =>
+                {
+                    b.Property<DateOnly>("TargetMonth")
+                        .HasColumnType("date")
+                        .HasColumnName("target_month");
+
+                    b.Property<DateTimeOffset?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.Property<DateTimeOffset>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("claimed_at");
+
+                    b.HasKey("TargetMonth");
+
+                    b.ToTable("monthly_notification_deliveries", (string)null);
+                });
+
             modelBuilder.Entity("Kakeibo.Api.Models.ReceiptAnalysisJob", b =>
                 {
                     b.Property<Guid>("Id")
