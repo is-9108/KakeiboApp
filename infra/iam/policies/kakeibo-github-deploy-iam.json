@@ -63,7 +63,8 @@
         "arn:aws:iam::255737342820:role/kakeibo-api-lambda",
         "arn:aws:iam::255737342820:role/kakeibo-monthly-lambda",
         "arn:aws:iam::255737342820:role/kakeibo-monthly-subscriptions-lambda",
-        "arn:aws:iam::255737342820:role/kakeibo-receipt-analysis-lambda"
+        "arn:aws:iam::255737342820:role/kakeibo-receipt-analysis-lambda",
+        "arn:aws:iam::255737342820:role/kakeibo-receipt-stale-lambda"
       ],
       "Sid": "PassLambdaRoles"
     },
@@ -79,7 +80,8 @@
       "Effect": "Allow",
       "Resource": [
         "arn:aws:iam::255737342820:role/kakeibo-monthly-scheduler",
-        "arn:aws:iam::255737342820:role/kakeibo-monthly-subscriptions-scheduler"
+        "arn:aws:iam::255737342820:role/kakeibo-monthly-subscriptions-scheduler",
+        "arn:aws:iam::255737342820:role/kakeibo-receipt-stale-scheduler"
       ],
       "Sid": "PassSchedulerRoles"
     },
